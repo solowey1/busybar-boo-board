@@ -9,6 +9,12 @@ const DEFAULTS: Config = {
   alertSound: true,
   calendarMinutes: 5,
   workHours: 0,
+  breakMinutes: 0,
+  musicArtwork: true,
+  artworkOpacity: 100,
+  rotateSeconds: 0,
+  hideEmpty: false,
+  claudeMascot: true,
 };
 
 /** Settings arrive grouped; the values may be nested or flat depending on firmware, so look through groups. */
@@ -45,6 +51,12 @@ export async function loadConfig(): Promise<Config> {
       alertSound: bool(v.alert_sound, true),
       calendarMinutes: num(v.calendar_minutes, DEFAULTS.calendarMinutes),
       workHours: num(v.work_hours, 0),
+      breakMinutes: num(v.break_minutes, 0),
+      musicArtwork: bool(v.music_artwork, true),
+      artworkOpacity: num(v.artwork_opacity, 100),
+      rotateSeconds: num(v.rotate_seconds, 0),
+      hideEmpty: bool(v.hide_empty, false),
+      claudeMascot: bool(v.claude_mascot, true),
     };
   } catch (err) {
     console.error(`${manifest.id}: settings: ${err instanceof Error ? err.message : String(err)}`);

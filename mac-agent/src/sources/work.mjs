@@ -23,7 +23,9 @@ export function readIdleSeconds() {
 export function addSample(rec, { idle, now }) {
   const active = idle !== null && idle < IDLE_LIMIT_S;
   const day = dayKey(new Date(now));
-  const next = rec.day === day ? { ...rec } : { day, activeSec: 0, firstAt: 0, sessionSec: 0, lastActiveAt: 0 };
+  // A new day starts from zero; if the old record was from the day before, its total becomes "yesterday".
+  const yesterday = dayKey(new Date(now - 86_400_000));
+  const next = rec.day === day ? { ...rec } : { day, activeSec: 0, firstAt: 0, sessionSec: 0, lastActiveAt: 0, yesterdaySec: rec.day === yesterday ? rec.activeSec : 0 };
   if (active) {
     // A pause longer than 5 minutes starts a new continuous session.
     if (next.lastActiveAt && now - next.lastActiveAt > 300_000) next.sessionSec = 0;
@@ -59,7 +61,7 @@ export function startWork({ hub, log }) {
     if (rec.active !== lastActive || now - lastPublished > 300_000) {
       lastActive = rec.active;
       lastPublished = now;
-      hub.set("work", { active: rec.active, todaySec: rec.activeSec, sessionSec: rec.sessionSec, since: rec.firstAt ? Math.floor(rec.firstAt / 1000) : 0, sentAt: Math.floor(now / 1000) });
+      hub.set("work", { active: rec.active, todaySec: rec.activeSec, sessionSec: rec.sessionSec, yesterdaySec: rec.yesterdaySec ?? 0, since: rec.firstAt ? Math.floor(rec.firstAt / 1000) : 0, sentAt: Math.floor(now / 1000) });
     }
   };
   void tick();

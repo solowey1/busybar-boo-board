@@ -8,7 +8,7 @@ import { music } from "./screens/music";
 import { servers } from "./screens/servers";
 import { work } from "./screens/work";
 import type { AgentAlert, AgentState, Config, Ctx, El, Screen, ScreenId } from "./types";
-import { AMBER, BLUE, DIM, GREEN, RED, WHITE, label } from "./util";
+import { AMBER, BLUE, BRAND, DIM, RED, WHITE, label } from "./util";
 
 /** The name the app draws under; the device clears elements by this id. */
 const APP = manifest.id;
@@ -16,9 +16,12 @@ const APP = manifest.id;
 const ALL: Screen[] = [music, claude, work, calendar, servers];
 const POLL_MS = 3000;
 const POLL_OFFLINE_MS = 10000;
-const TICK_MS = 1000;
+// Twice a second: the mascot moves on every half second; unchanged elements are not sent again.
+const TICK_MS = 500;
 const ALERT_MS = 9000;
 const FLASH_MS = 1200;
+/** After the wheel or OK is used, the automatic rotation waits this long. */
+const ROTATE_HOLD_MS = 15000;
 /** Other apps and BUSY sessions can wipe our elements; resend everything now and then. */
 const REFRESH_MS = 60000;
 const SOUND_REMINDER = "shared/sounds/calendar_reminder_ends.snd";
@@ -32,9 +35,11 @@ interface Banner {
 
 const report = (err: unknown) => console.error(`${APP}: ${err instanceof Error ? err.message : String(err)}`);
 
+const byId = (id: ScreenId): Screen => ALL.filter((s) => s.id === id)[0];
+
 function alertColor(kind: string): string {
   if (kind.indexOf("down") >= 0) return RED;
-  if (kind.indexOf("claude") === 0) return GREEN;
+  if (kind.indexOf("claude") === 0) return BRAND;
   if (kind.indexOf("calendar") === 0) return AMBER;
   return BLUE;
 }
@@ -49,8 +54,9 @@ function alertHeader(kind: string): string {
 
 function main(): void {
   let cfg: Config | null = null;
-  let screens: Screen[] = [];
-  let index = 0;
+  let enabled: Screen[] = [];
+  let current: ScreenId = "music";
+  const views: Record<string, number> = {};
   let data: AgentState = { rev: 0, alerts: [] };
   let recvAt = Date.now();
   let online = false;
@@ -58,10 +64,13 @@ function main(): void {
   let gotFirst = false;
   let banner: Banner | null = null;
   let flashUntil = 0;
+  let danceUntil = 0;
+  let lastInputAt = 0;
+  let rotateAt = 0;
   let stopped = false;
   let drawing = false;
-  let refreshAt = Date.now() + REFRESH_MS;
   let polling = false;
+  let refreshAt = Date.now() + REFRESH_MS;
   const sent: Record<string, string> = {};
   const done: Record<string, boolean> = {};
   let pollTimer: number | undefined;
@@ -72,9 +81,17 @@ function main(): void {
     ALL.forEach((s) => {
       if (c.screens[s.id]) ids.push(s.id);
     });
-    if (c.calendarMinutes > 0 && ids.indexOf("calendar") < 0) ids.push("calendar");
-    if (c.workHours > 0 && ids.indexOf("work") < 0) ids.push("work");
+    if ((c.calendarMinutes > 0 || c.hideEmpty) && ids.indexOf("calendar") < 0) ids.push("calendar");
+    if ((c.workHours > 0 || c.breakMinutes > 0) && ids.indexOf("work") < 0) ids.push("work");
     return ids;
+  };
+
+  const makeCtx = (now: number): Ctx => ({ cfg: cfg as Config, data, at: now, recvAt, online, view: views[current] || 0, danceUntil });
+
+  /** The screens the wheel goes through: the enabled ones, minus the empty ones when that is asked for. */
+  const visible = (ctx: Ctx): Screen[] => {
+    const list = enabled.filter((s) => !(ctx.cfg.hideEmpty && s.isEmpty && s.isEmpty({ ...ctx, view: 0 })));
+    return list.length > 0 ? list : enabled;
   };
 
   const play = (path: string): void => {
@@ -91,12 +108,14 @@ function main(): void {
     if (o.sound) play(o.sound);
   };
 
+  const showText = (header: string, text: string, color: string): void => {
+    show([label("a.h", header, 0, { color, scroll_rate: 0 }), label("a.t", text, 8, { color: WHITE, scroll_rate: 1500 })], ALERT_MS, { sound: SOUND_REMINDER, led: color });
+  };
+
   const showAlert = (a: AgentAlert): void => {
-    const color = alertColor(a.kind);
-    show([label("a.h", alertHeader(a.kind), 0, { color, scroll_rate: 0 }), label("a.t", a.text, 8, { color: WHITE, scroll_rate: 1500 })], ALERT_MS, {
-      sound: SOUND_REMINDER,
-      led: color,
-    });
+    // Claude is done: the mascot dances once the pop-up is gone.
+    if (a.kind.indexOf("claude") === 0) danceUntil = Date.now() + ALERT_MS + 8000;
+    showText(alertHeader(a.kind), a.text, alertColor(a.kind));
   };
 
   /** Pop-ups that the bar works out itself from the data it already has. */
@@ -105,21 +124,34 @@ function main(): void {
     const nowS = Math.floor(ctx.at / 1000);
     const e = data.calendar && data.calendar.ok ? data.calendar.events[0] : undefined;
     if (e && cfg.calendarMinutes > 0) {
-      const remaining = Math.floor(recvAt / 1000) + e.startIn - nowS;
-      const key = e.title + "|" + (Math.floor(recvAt / 1000) + e.startIn);
+      const startAt = Math.floor(recvAt / 1000) + e.startIn;
+      const remaining = startAt - nowS;
+      const key = e.title + "|" + startAt;
+      // 0: N minutes before, 1: one minute before, 2: at the start.
       const stage = remaining <= 0 && remaining > -60 ? 2 : remaining <= 60 && remaining > 0 ? 1 : remaining <= cfg.calendarMinutes * 60 && remaining > 0 ? 0 : -1;
       if (stage >= 0 && !done[key + "#" + stage]) {
         done[key + "#" + stage] = true;
-        // Skip a stage that is already behind us when the first data arrives late.
-        show(calendar.elements(ctx), ALERT_MS, { sound: stage === 2 ? SOUND_START : SOUND_REMINDER, led: AMBER });
+        show(calendar.elements({ ...ctx, view: 0 }), ALERT_MS, { sound: stage === 2 ? SOUND_START : SOUND_REMINDER, led: AMBER });
       }
     }
-    if (cfg.workHours > 0 && data.work) {
-      const total = data.work.todaySec + (data.work.active ? Math.floor((ctx.at - recvAt) / 1000) : 0);
-      const key = "work|" + new Date(ctx.at).toDateString();
-      if (total >= cfg.workHours * 3600 && !done[key]) {
-        done[key] = true;
-        show([label("a.h", "Работа", 0, { color: BLUE, scroll_rate: 0 }), label("a.t", "Уже " + cfg.workHours + " ч за день", 8, { color: WHITE })], ALERT_MS, { sound: SOUND_REMINDER, led: BLUE });
+    if (data.work) {
+      const grow = data.work.active ? Math.floor((ctx.at - recvAt) / 1000) : 0;
+      const day = new Date(ctx.at).toDateString();
+      if (cfg.workHours > 0) {
+        const key = "work|" + day;
+        if (data.work.todaySec + grow >= cfg.workHours * 3600 && !done[key]) {
+          done[key] = true;
+          showText("Работа", "Уже " + cfg.workHours + " ч за день", BLUE);
+        }
+      }
+      if (cfg.breakMinutes > 0 && data.work.active) {
+        // One reminder per full break interval of continuous work.
+        const n = Math.floor((data.work.sessionSec + grow) / (cfg.breakMinutes * 60));
+        const key = "break|" + day + "|" + n;
+        if (n >= 1 && !done[key]) {
+          done[key] = true;
+          showText("Перерыв", "Уже " + n * cfg.breakMinutes + " мин за Mac, пора размяться", AMBER);
+        }
       }
     }
   };
@@ -155,6 +187,20 @@ function main(): void {
     }
   };
 
+  /** Steps through the visible screens by `delta`. */
+  const step = (ctx: Ctx, delta: number): void => {
+    const list = visible(ctx);
+    let i = 0;
+    list.forEach((s, k) => {
+      if (s.id === current) i = k;
+    });
+    const next = list[(i + delta + list.length) % list.length];
+    if (next.id !== current) {
+      current = next.id;
+      views[current] = 0;
+    }
+  };
+
   const frame = (): void => {
     if (!cfg || stopped) return;
     const now = Date.now();
@@ -162,8 +208,22 @@ function main(): void {
       refreshAt = now + REFRESH_MS;
       Object.keys(sent).forEach((id) => delete sent[id]);
     }
-    const ctx: Ctx = { cfg, data, at: now, recvAt, online };
+    let ctx = makeCtx(now);
     localAlerts(ctx);
+
+    const list = enabled.length > 0 ? visible(ctx) : [];
+    // The current screen can vanish (it became empty, or was switched off): move on to the first visible one.
+    if (list.length > 0 && !list.some((s) => s.id === current)) {
+      current = list[0].id;
+      ctx = makeCtx(now);
+    }
+    // Automatic rotation, held back for a while after the wheel was used.
+    if (cfg.rotateSeconds > 0 && list.length > 1 && now - lastInputAt > ROTATE_HOLD_MS && now >= rotateAt) {
+      rotateAt = now + cfg.rotateSeconds * 1000;
+      step(ctx, 1);
+      ctx = makeCtx(now);
+    }
+
     let els: El[];
     let led: string | undefined;
     if (banner && now < banner.until) {
@@ -171,15 +231,18 @@ function main(): void {
       led = banner.led;
       // The LED blinks once, with the first frame of the banner.
       if (banner.led) banner.led = undefined;
-    } else if (now < flashUntil && screens.length > 0) {
-      const s = screens[index];
-      els = [label("f.t", s.title, 0, { color: WHITE, scroll_rate: 0 }), label("f.n", index + 1 + " / " + screens.length, 8, { color: DIM, scroll_rate: 0 })];
-    } else if (screens.length === 0) {
+    } else if (list.length === 0) {
       els = [label("n.t", "Нет экранов", 4, { color: DIM })];
+    } else if (now < flashUntil) {
+      let n = 0;
+      list.forEach((s, k) => {
+        if (s.id === current) n = k + 1;
+      });
+      els = [label("f.t", byId(current).title, 0, { color: WHITE, scroll_rate: 0 }), label("f.n", n + " / " + list.length, 8, { color: DIM, scroll_rate: 0 })];
     } else if (!online && data.rev === 0) {
       els = [label("o.t", "Mac не отвечает", 0, { color: RED, scroll_rate: 0 }), label("o.d", cfg.host, 8, { color: DIM, scroll_rate: 0 })];
     } else {
-      els = screens[index].elements(ctx);
+      els = byId(current).elements(ctx);
     }
     sync(els, led).catch(report);
   };
@@ -227,18 +290,36 @@ function main(): void {
   const unbind = listen("input", (event) => {
     if (stopped) return;
     if (event.key === "back" && event.action === "short") return quit(unbind);
-    if (event.key === "encoder" && screens.length > 1) {
-      index = (index + (event.delta > 0 ? 1 : screens.length - 1)) % screens.length;
-      flashUntil = Date.now() + FLASH_MS;
-      banner = null;
-      frame();
+    if (!cfg) return;
+    const now = Date.now();
+    if (event.key === "encoder") {
+      lastInputAt = now;
+      const ctx = makeCtx(now);
+      if (visible(ctx).length > 1) {
+        step(ctx, event.delta > 0 ? 1 : -1);
+        flashUntil = now + FLASH_MS;
+        banner = null;
+        frame();
+      }
+    } else if (event.key === "ok" && event.action === "short") {
+      // OK steps through the sub-views of the current screen (Claude: window / day and week, ...).
+      lastInputAt = now;
+      const screen = byId(current);
+      const count = screen.views ? screen.views(makeCtx(now)) : 1;
+      if (count > 1) {
+        views[current] = ((views[current] || 0) + 1) % count;
+        banner = null;
+        frame();
+      }
     }
   });
 
   loadConfig()
     .then((c) => {
       cfg = c;
-      screens = ALL.filter((s) => c.screens[s.id]);
+      enabled = ALL.filter((s) => c.screens[s.id]);
+      if (enabled.length > 0) current = enabled[0].id;
+      rotateAt = Date.now() + c.rotateSeconds * 1000;
       tickTimer = setInterval(frame, TICK_MS) as unknown as number;
       frame();
       poll();

@@ -4,11 +4,14 @@ import { AMBER, DIM, WHITE, countdown, label } from "../util";
 export const calendar: Screen = {
   id: "calendar",
   title: "Календарь",
-  elements({ data, recvAt }) {
+  views: ({ data }) => (data.calendar && data.calendar.ok ? Math.max(1, data.calendar.events.length) : 1),
+  isEmpty: ({ data }) => !data.calendar || !data.calendar.ok || data.calendar.events.length === 0,
+  elements({ data, recvAt, view }) {
     const c = data.calendar;
     if (!c) return [label("k.t1", "Календарь", 0), label("k.t2", "нет данных", 8, { color: DIM })];
     if (!c.ok) return [label("k.t1", "Календарь", 0), label("k.t2", "нет доступа", 8, { color: DIM })];
-    const e = c.events[0];
+    // OK steps to the next meeting of the day.
+    const e = c.events[Math.min(view, Math.max(0, c.events.length - 1))];
     if (!e) return [label("k.t1", "Календарь", 0), label("k.t2", "встреч нет", 8, { color: DIM })];
     const base = Math.floor(recvAt / 1000);
     const started = e.startIn <= 0;

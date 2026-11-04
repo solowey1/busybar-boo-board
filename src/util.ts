@@ -7,6 +7,10 @@ export const GREEN = "#00E060FF";
 export const RED = "#FF3030FF";
 export const AMBER = "#FFB000FF";
 export const BLUE = "#40A0FFFF";
+export const YELLOW = "#FFD000FF";
+/** Claude's brand orange, and a slightly darker one that sets text apart from the mascot. */
+export const BRAND = "#D97757FF";
+export const BRAND_DARK = "#BC6446FF";
 
 const pad2 = (n: number) => (n < 10 ? "0" + n : String(n));
 
@@ -51,4 +55,23 @@ export function bar(id: string, x: number, y: number, w: number, h: number, colo
 /** Counts down (or up) on the firmware's own clock; no redraw needed. */
 export function countdown(id: string, toEpochSec: number, x: number, y: number, o: Partial<El> = {}): El {
   return { id, type: "countdown", timestamp: String(toEpochSec), direction: "time_left", show_hours: "when_non_zero", color: WHITE, x, y, align: "top_left", display: "front", ...o };
+}
+
+/**
+ * An XPM2 bitmap element. `rows` are strings of one character per pixel, "." is transparent;
+ * `colors` maps every other character to "#RRGGBB".
+ */
+export function xpm(id: string, rows: string[], x: number, y: number, colors: Record<string, string>, o: Partial<El> = {}): El {
+  const keys = Object.keys(colors);
+  const head = "! XPM2\n" + rows[0].length + " " + rows.length + " " + (keys.length + 1) + " 1\n. c none\n";
+  const table = keys.map((k) => k + " c " + colors[k]).join("\n");
+  return { id, type: "xpmbitmap", data: head + table + "\n" + rows.join("\n"), x, y, align: "top_left", display: "front", ...o };
+}
+
+/** A thin progress line along the bottom edge: a faint track and, over it, the filled part. */
+export function progressLine(prefix: string, x: number, width: number, fraction: number, color: string): El[] {
+  const els = [bar(prefix + ".bg", x, 15, width, 1, FAINT)];
+  const w = Math.max(0, Math.min(width, Math.round(width * fraction)));
+  if (w > 0) els.push(bar(prefix + ".fg", x, 15, w, 1, color));
+  return els;
 }

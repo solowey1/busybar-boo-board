@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { Hub } from "../src/hub.mjs";
 import { createApi } from "../src/server.mjs";
 import { applyMessage, toMusic } from "../src/sources/music.mjs";
-import { parseUsage, summarize } from "../src/sources/claude.mjs";
+import { costOf, parseUsage, summarize } from "../src/sources/claude.mjs";
 import { addSample } from "../src/sources/work.mjs";
 import { toCalendar } from "../src/sources/calendar.mjs";
 
@@ -82,4 +82,34 @@ test("api: needs token, answers same:true for the current rev, accepts /notify",
   } finally {
     server.close();
   }
+});
+
+test("claude: cost follows the model's prices, cache reads are cheap and cache writes cost 1.25x", () => {
+  // 1M input + 1M output on the Sonnet price list: 2 + 10.
+  assert.equal(costOf("claude-sonnet-5-5", { input_tokens: 1e6, output_tokens: 1e6 }), 12);
+  assert.equal(costOf("claude-opus-5-5", { input_tokens: 1e6, output_tokens: 1e6 }), 24);
+  assert.equal(costOf("claude-opus-5-5", { cache_read_input_tokens: 1e6 }), 0.2);
+  assert.equal(costOf("claude-opus-5-5", { cache_creation_input_tokens: 1e6 }), 5);
+  // an unknown model is priced like the Sonnet family
+  assert.equal(costOf("something-new", { output_tokens: 1e6 }), 10);
+});
+
+test("claude: the window reports its cost and the time of the last message", () => {
+  const line = (t, id) => JSON.stringify({ timestamp: t, requestId: "r" + id, message: { id: "m" + id, model: "claude-sonnet-5-5", usage: { output_tokens: 1e6 } } });
+  const recs = parseUsage([line("2026-11-04T01:10:00Z", 1), line("2026-11-04T02:00:00Z", 2)].join("\n"));
+  const s = summarize(recs, Date.parse("2026-11-04T03:00:00Z"));
+  assert.equal(s.blockCost, 20);
+  assert.equal(s.lastAt, Date.parse("2026-11-04T02:00:00Z") / 1000);
+});
+
+test("work: the day's total becomes yesterday's on the next day, and only then", () => {
+  const t0 = new Date(2026, 10, 4, 10, 0, 0).getTime();
+  let r = addSample({ day: "", activeSec: 0, firstAt: 0, sessionSec: 0, lastActiveAt: 0 }, { idle: 1, now: t0 });
+  r = addSample(r, { idle: 1, now: t0 + 15_000 });
+  const next = addSample(r, { idle: 1, now: t0 + 24 * 3600_000 });
+  assert.equal(next.yesterdaySec, 30);
+  // two days later the old total is no longer "yesterday"
+  assert.equal(addSample(r, { idle: 1, now: t0 + 48 * 3600_000 }).yesterdaySec, 0);
+  // the same day keeps the figure
+  assert.equal(addSample(next, { idle: 1, now: t0 + 24 * 3600_000 + 15_000 }).yesterdaySec, 30);
 });

@@ -5,7 +5,35 @@ import { join } from "node:path";
 const HOUR = 3600_000;
 const BLOCK = 5 * HOUR;
 
-/** Pulls usage records out of JSONL text; returns [{t, id, tokens}] */
+// USD per million tokens: input, output, cache read. A cache write (5 min) costs 1.25x the input price.
+// Prices of the models seen in the logs; a model that is not listed is priced like the nearest family.
+export const PRICES = {
+  opus: { in: 4, out: 20, cacheRead: 0.2 },
+  sonnet: { in: 2, out: 10, cacheRead: 0.2 },
+  haiku: { in: 0.1, out: 0.5, cacheRead: 0.01 },
+  fable: { in: 10, out: 50, cacheRead: 0.25 },
+};
+
+export function priceOf(model = "") {
+  const m = model.toLowerCase();
+  if (m.includes("opus")) return PRICES.opus;
+  if (m.includes("haiku")) return PRICES.haiku;
+  if (m.includes("fable") || m.includes("mythos")) return PRICES.fable;
+  return PRICES.sonnet;
+}
+
+/** What one message would cost on the API, in USD. */
+export function costOf(model, u) {
+  const p = priceOf(model);
+  const cents =
+    (u.input_tokens ?? 0) * p.in +
+    (u.output_tokens ?? 0) * p.out +
+    (u.cache_read_input_tokens ?? 0) * p.cacheRead +
+    (u.cache_creation_input_tokens ?? 0) * p.in * 1.25;
+  return cents / 1e6;
+}
+
+/** Pulls usage records out of JSONL text; returns [{t, id, tokens, out, cost}] */
 export function parseUsage(text) {
   const out = [];
   for (const line of text.split("\n")) {
@@ -17,7 +45,7 @@ export function parseUsage(text) {
       const t = Date.parse(o.timestamp);
       if (!Number.isFinite(t)) continue;
       const tokens = (u.input_tokens ?? 0) + (u.output_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
-      out.push({ t, id: `${o.message.id ?? ""}:${o.requestId ?? ""}`, tokens, out: u.output_tokens ?? 0 });
+      out.push({ t, id: `${o.message.id ?? ""}:${o.requestId ?? ""}`, tokens, out: u.output_tokens ?? 0, cost: costOf(o.message.model, u) });
     } catch {
       /* partial or foreign line */
     }
@@ -32,16 +60,19 @@ export function summarize(records, now = Date.now()) {
   let last = null;
   let tokens = 0;
   let outTokens = 0;
+  let cost = 0;
   let count = 0;
   for (const r of sorted) {
     if (start === null || r.t >= start + BLOCK || r.t - last >= BLOCK) {
       start = Math.floor(r.t / HOUR) * HOUR;
       tokens = 0;
       outTokens = 0;
+      cost = 0;
       count = 0;
     }
     tokens += r.tokens;
     outTokens += r.out;
+    cost += r.cost ?? 0;
     count += 1;
     last = r.t;
   }
@@ -55,6 +86,10 @@ export function summarize(records, now = Date.now()) {
     active,
     blockTokens: active ? tokens : 0,
     blockOut: active ? outTokens : 0,
+    // What the window would cost at API prices, rounded to cents.
+    blockCost: active ? Math.round(cost * 100) / 100 : 0,
+    // Epoch seconds of the latest message: the bar tells "working now" from "asleep" with its own clock.
+    lastAt: last === null ? 0 : Math.floor(last / 1000),
     blockMessages: active ? count : 0,
     // Seconds until the block resets; the bar counts down from its own clock.
     resetIn: active ? Math.max(0, Math.round((start + BLOCK - now) / 1000)) : 0,
@@ -64,7 +99,7 @@ export function summarize(records, now = Date.now()) {
 }
 
 /** Reads the Claude Code logs incrementally (only new bytes of each file). */
-export function startClaude({ hub, log, root = join(homedir(), ".claude", "projects"), intervalMs = 30_000 }) {
+export function startClaude({ hub, log, root = join(homedir(), ".claude", "projects"), intervalMs = 10_000 }) {
   const offsets = new Map(); // file -> bytes already read
   const seen = new Set();
   let records = [];

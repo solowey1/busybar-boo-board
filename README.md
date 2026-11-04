@@ -25,8 +25,8 @@ You need macOS 13+, Node 24 (`nvm use` reads `.nvmrc`), the Xcode command line t
 ```sh
 git clone git@github.com:solowey1/busybar-status.git && cd busybar-status
 nvm use && npm ci
-npm run build                                   # the bar app -> dist/app.solowey.busybar-status.tgz
-npm run app:install -- --addr <bar ip> --password <bar password>
+npm run build                                   # the apps for the bar -> apps/*/dist/*.tgz
+npm run app:install -- --addr <bar ip> --password <bar password>   # the app with all the screens
 npm run app:run     -- --addr <bar ip> --password <bar password>
 (cd mac-agent && ./tray/install.sh)             # builds and starts the menu-bar app and the agent
 ```
@@ -80,9 +80,26 @@ The bar learns that an agent works in about a second without any hook: the agent
 
 The agent samples the keyboard and mouse idle time every 15 seconds and adds the active ones up per day in `~/.local/state/busybar-status/work.json` (the last N days, 30 by default). It counts only while it runs and the Mac is awake, so start it at login if you want whole days.
 
+## Apps on the bar: all the screens, or only the ones you need
+
+The repository is a monorepo that builds several apps for the bar from the same code:
+
+| App | id | What it is |
+|---|---|---|
+| **Busybar status** | `app.solowey.busybar-status` | all the screens in one: the wheel goes round them, in the order you set, and a meeting, a server going down or an AI finishing pops up over any screen |
+| Status: Music | `app.solowey.status-music` | the music screen alone |
+| Status: Agents | `app.solowey.status-agents` | the agents screen (usage, the agents, the mascot page) alone |
+| Status: Servers | `app.solowey.status-servers` | the servers screen alone |
+| Status: Calendar | `app.solowey.status-calendar` | the calendar screen alone |
+| Status: Work time | `app.solowey.status-work` | the work-time screen alone |
+
+Install the one with all the screens, or any of the single screens (`npm run app:install -w apps/music -- --addr <bar ip> --password <password>`, or the `.tgz` from a release with `busy-cli app install`). The bar runs one app at a time, so single screens are opened from the bar's apps menu and have no wheel between them, and each shows only the news of its own screen; in return each is small (its code only) and asks the agent only for its own data. The settings page on the Mac knows which screens are on the bar: the tab of a screen that is not there shows how to install it instead of its settings. The common settings (language, the Mac's IP and port) are written to every app of ours on the bar when you save, and to a new one once it appears.
+
+A measurement on the bar (firmware 1.3.1): the app with all the screens ran through every screen and state with a 128 KiB heap, and failed to start with 96 KiB; the manifests ask for 192 KiB (the combined app) and 128 KiB (each screen), the rest of the memory stays with the firmware.
+
 ## Packages
 
-Each release has `busybar-status-<version>-<system>` archives for `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64` and `win-x64`. Every one carries its own Node and the bar app's `.tgz`.
+Each release has `busybar-status-<version>-<system>` archives for `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64` and `win-x64`. Every one carries its own Node and, in an `apps` folder, the `.tgz` of every app for the bar.
 
 | System | What you get | Not available |
 |---|---|---|
@@ -105,13 +122,14 @@ The app on the bar cannot accept connections and cannot write to storage on firm
 ## Development
 
 ```sh
-npm run typecheck             # the bar app
-npm run build                 # the bar app -> dist/
-(cd mac-agent && npm test)    # the agent: 29 tests
-node mac-agent/tools/icons.mjs appmeta src/appmeta   # redraws the ghost icons for the bar
+npm run typecheck             # every app for the bar
+npm run build                 # every app -> apps/*/dist/*.tgz
+npm run versions              # all apps have the version of package.json
+npm test                      # the agent: 30 tests
+node mac-agent/tools/icons.mjs appmeta apps/status/src/appmeta   # redraws the ghost icons for the bar (copy them to the other apps)
 ```
 
-`src/` is the bar app (TypeScript, strict, runs in the firmware's JerryScript, not Node; its heap is 512 KiB in the manifest; screens keep their buffers only while they are on the display, and running out of heap restarts the whole bar, so keep per-frame allocations small), `mac-agent/` the agent: `src/` sources, `ui/` the settings page, `tray/` the menu-bar app (Swift), `tools/` icons and packaging. The mascot page's wave is a native bar animation, `src/animations/pulse.anim`, written by `node mac-agent/tools/anim.mjs pulse` (the `.anim` format, "bicycle1", is described in the [firmware's `anim_file_format.h`](https://github.com/busy-app/busybar-firmware/blob/dev/lib/anim_file/anim_file_format.h); the writer uses BGRA8888 raw frames, which the bar plays; BGR888 it did not). The firmware loops it by itself, so the app sends the element once. Server tile icons are 9×9 LED versions of [Lucide](https://lucide.dev) icons (ISC licence), made by `mac-agent/tools/glyphs/raster.py` into `src/glyphs.json` (one 81-character string per icon); the buttons on the settings page use Lucide icons too. Read `AGENTS.md` before changing the bar app.
+`packages/core/src/` is the code of the bar apps (TypeScript, strict, runs in the firmware's JerryScript, not Node: the engine, the screens, the texts) and `apps/<name>/` is one app each: a `main.ts` that names its screens, its `appmeta/` (manifest, settings, icons) and, for the agents screen, the pulse animation. Heaps are 192 KiB (all the screens) and 128 KiB (a single screen); screens keep their buffers only while they are on the display, and running out of heap stops the app and can restart the whole bar (it did during the measurement, below 112 KiB), so keep per-frame allocations small. `mac-agent/` is the agent: `src/` sources, `ui/` the settings page, `tray/` the menu-bar app (Swift), `tools/` icons and packaging. The mascot page's wave is a native bar animation, `apps/{status,agents}/src/animations/pulse.anim`, written by `node mac-agent/tools/anim.mjs pulse` (the `.anim` format, "bicycle1", is described in the [firmware's `anim_file_format.h`](https://github.com/busy-app/busybar-firmware/blob/dev/lib/anim_file/anim_file_format.h); the writer uses BGRA8888 raw frames, which the bar plays; BGR888 it did not). The firmware loops it by itself, so the app sends the element once. Server tile icons are 9×9 LED versions of [Lucide](https://lucide.dev) icons (ISC licence), made by `mac-agent/tools/glyphs/raster.py` into `packages/core/src/glyphs.json` (one 81-character string per icon); the buttons on the settings page use Lucide icons too. Read `AGENTS.md` before changing the bar app.
 
 ## BUSY app template reference
 

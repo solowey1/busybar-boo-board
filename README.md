@@ -1,82 +1,120 @@
 # Busybar status
 
-JS-приложение для BUSY Bar плюс агент на Mac. Колесо переключает экраны; какие экраны включены, выбирается в настройках приложения.
+[Русская версия](README.ru.md)
 
-| Экран | Что показывает |
-|---|---|
-| Музыка | обложка 16×16 (углы прозрачные), трек и исполнитель бегущей строкой, линия прогресса; бар сам двигает прогресс |
-| Claude | слева маскот (по настройке), в первой строке токены 5-часового окна, их стоимость по ценам API и время до сброса; во второй токены за день (D) и неделю (W); внизу линия «сколько окна прошло» (всё из логов Claude Code) |
-| Время работы | «Вчера» и «Сегодня» с временем справа; «Сегодня» зелёным, пока Mac в работе, и жёлтым на паузе; с целью на день — линия прогресса. OK: во сколько начал и сколько подряд |
-| Календарь | ближайшая встреча и отсчёт; за N минут до начала всплывает поверх любого экрана. OK: следующая встреча |
-| Серверы | доступность адресов из `config.json`; красным, если кто-то не отвечает. OK: по одному серверу |
+A status display for the [BUSY Bar](https://busy.app) (a 72×16 LED strip with a wheel). It shows what is going on on your computer: the track that is playing, what your AI tools are doing, how long you have worked, your next meeting and whether your servers are up. The wheel switches screens, **OK** steps through a screen's pages, the big central **Start / Pause** button does one more thing on two screens (below).
 
-**Маскот Claude** работает, пока Claude Code пишет сообщения (последние 90 секунд), танцует после «Claude закончил», моргает и поглядывает по сторонам в простое и спит с «z», если Claude молчит больше 10 минут. С маскотом текст на экране темнее фирменного цвета, без него — фирменного.
+It has two parts: a JavaScript app that runs **on the bar**, and an agent that runs **on your computer** (Node 24) and feeds it. On a Mac the agent comes with a menu-bar app and a settings page in the browser.
 
-**Стоимость** считается по ценам API из `mac-agent/src/sources/claude.mjs` (`PRICES`): токены ввода и вывода, чтение кеша и запись в кеш (×1,25 от ввода). Это то, что стоило бы то же самое по API; к лимитам подписки отношения не имеет. Неизвестную модель агент считает по ценам Sonnet.
+| Screen | What it shows | OK / Start |
+|---|---|---|
+| Music | cover (16×16, rounded), title and artist (long ones scroll), a progress line the bar moves by itself, an optional play/pause icon | Start: optionally play / pause |
+| AI | tokens and API-price cost of the current 5-hour Claude window, time to reset, tokens today (`D`) and this week (`W`), a line for how much of the window has passed, and a mascot (Claude's own, or a rainbow ghost) that works the moment any agent works, dances when an AI is done, blinks and sleeps. Several agents running (Claude, Codex, Gemini, Aider, …)? | OK: next agent |
+| Work | yesterday and today (green while you work, yellow on a pause) | since when / streak; activity squares of the last five weeks, like GitHub's, with week and month totals |
+| Calendar | the next meeting and a countdown; it also pops up N minutes before a meeting on any screen | next meeting |
+| Mascot | optional (switched on in the AI tab of the settings page): only the mascot in the middle; while an agent works it jumps for joy and a continuous blue pulse (a fading wave) spreads around it | – |
+| Servers | one rounded tile per server with its icon (green = up, grey = not answering); the more servers, the smaller the tiles: the icon gives way to the first letter, then to the colour alone. Or a list | OK: each server. Start: the next page of the list |
 
-Колесо переключает экраны, OK листает подвиды экрана, Back выходит. Управления музыкой нет.
+Every screen has an accent colour you can change. Reminders: a meeting is near, you worked for N hours, time for a break, a server went down, an AI finished.
 
-Настройки: какие экраны включены; обложка и её непрозрачность; маскот Claude; автолистание экранов (и пауза после ручного переключения); «прятать пустые экраны» (нет музыки, нет окна Claude, нет встреч); звук; за сколько минут показывать встречу; напоминание после N часов работы; напоминание о перерыве каждые N минут непрерывной работы.
+## Quick start (macOS)
 
-Всплывающие уведомления: Claude закончил или ждёт ответа, сервер упал или поднялся, встреча скоро (за N минут, за минуту и в момент начала), цель по часам работы, пора размяться.
-
-## Как это устроено
-
-```
-Mac: mac-agent (Node 24)  <--- HTTP, раз в 3 с, только если что-то изменилось --->  бар: JS-приложение
-  media-control, логи Claude, простой HID, EventKit, ping серверов
-```
-
-Приложение на баре не принимает входящих соединений и не может писать в хранилище (на прошивке 1.3.1 `storage` для приложений отвечает 403), поэтому оно само опрашивает агента. Агент отдаёт номер ревизии: пока ничего не изменилось, ответ крошечный. Прогресс трека, время работы и отсчёты бар считает сам; бегущую строку и `countdown` рисует прошивка.
-
-## Установка
-
-Нужен Node 24 (`nvm use`).
+You need macOS 13+, Node 24 (`nvm use` reads `.nvmrc`), the Xcode command line tools (`xcode-select --install`, for `swiftc`), [`media-control`](https://github.com/ungive/media-control) for the music screen (`brew install media-control`), and a BUSY Bar on the same Wi-Fi.
 
 ```sh
-# 1. агент на Mac
-cd mac-agent
-npm test
-node src/index.mjs                 # первый запуск создаёт ~/.config/busybar-status/config.json с токеном
-launchd/install.sh                 # автозапуск при входе (uninstall — убрать)
-
-# 2. приложение на бар (адрес и пароль HTTP API по Wi-Fi)
-cd ..
-npm run build
-npm run app:install -- --addr <ip бара> --password <пароль>
-npm run app:run     -- --addr <ip бара> --password <пароль>
+git clone git@github.com:solowey1/busybar-status.git && cd busybar-status
+nvm use && npm ci
+npm run build                                   # the bar app -> dist/app.solowey.busybar-status.tgz
+npm run app:install -- --addr <bar ip> --password <bar password>
+npm run app:run     -- --addr <bar ip> --password <bar password>
+(cd mac-agent && ./tray/install.sh)             # builds and starts the menu-bar app and the agent
 ```
 
-В настройках приложения (веб-интерфейс бара, Apps) укажите адрес Mac, порт (8787) и токен из `~/.config/busybar-status/config.json`. Адрес Mac лучше закрепить за ним в роутере.
+Then click the icon in the menu bar → **Настроить… / Settings** (the page is `http://127.0.0.1:8787/ui`). On the **General** tab enter the bar's address and password, press **Bind** (it writes the Mac's IP, port and token into the app on the bar) and **Save**. macOS asks once whether the app may read your calendar.
 
-Агент слушает локальную сеть и отвечает только с верным токеном (`X-Token` или `?t=`).
+Prebuilt packages for macOS, Windows and Linux are attached to every [release](https://github.com/solowey1/busybar-status/releases) (see [Packages](#packages)). To remove the menu-bar app: `mac-agent/tray/install.sh uninstall`.
 
-### Календарь
+## Settings
 
-Доступ к календарю нужно выдать один раз: запустите в Terminal `~/.cache/busybar-status/events 24` (бинарник соберётся при первом старте агента) и нажмите «Разрешить».
+**On the bar** (Settings → the app): the language (Русский / English), the Mac's IP, port and token, and an on/off switch for each of the five screens. That is all; the bar's own settings page is flat and small, and its labels are in both languages.
 
-### Уведомления от Claude Code
+**In the browser** (`/ui`, from the menu-bar icon): everything else, one tab per screen. Changes are saved on the Mac and reach the bar within seconds.
 
-`mac-agent/bin/notify.mjs` отправляет уведомление на бар и читает токен из конфига. Хуки в `~/.claude/settings.json`:
+| Tab | Settings |
+|---|---|
+| General | the bar's address and password, **Bind**; **language of the whole app** (the bar, this page, the menu-bar menu, notifications; applied at once); start at login; show the app in the Dock / menu bar / both / neither; a `.local` name for this page (not `busybar`: that is the bar's own name); the look of the menu-bar icon |
+| Music | cover and its opacity; play/pause icon (green, yellow on pause); the big **Start / Pause** button plays / pauses; accent colour (paused: half transparent) |
+| AI | mascot: Claude, ghost or none; **a separate mascot screen**; the **default agent** (the ghost is also what other AIs get when they report); **cover other screens when an AI finishes** (off by default: then only the sound and the LED tell, and the news waits on the AI screen); accent colour |
+| Work | reminder after N hours; break reminder every N minutes; how many days to keep (30); idle time that counts as a pause; accent colour; the activity squares |
+| Calendar | minutes before a meeting to pop up; calendars to ignore; accent colour (red by default) |
+| Servers | the list (name, address, icon, colours; reorder with the arrows); tiles or list (in the list the big button turns the page); colours for up / down |
+| App | auto-rotation, hide empty screens, how long the screen's name stays after the wheel (700 ms, 0 = off), notification sound |
+
+The settings page works on a phone too (open the same address on the same network, with the token link from the General tab): the tabs become a strip on top and the rows stack.
+
+If you choose to show the app **nowhere**, the settings stay reachable at their address in a browser (`http://127.0.0.1:8787/ui`, or `http://<name>.local/ui` if you set a name; while a name is set the page is also served on port 80, so no `:8787` is needed). A browser that has never seen the page asks for the token once (the General tab shows a ready link with it). The name is published on the local network by macOS (Bonjour); `busybar` is refused because `busybar.local` is the bar itself.
+
+## The menu-bar app (macOS)
+
+A click on the icon (a rainbow ghost; other looks are on the settings page) opens a menu: the agent's state and port, the bar's address, calendar access, **Settings…**, **Restart** and **Disable** (stops the agent too). It starts the agent as its own child and brings it back if it dies. Start-at-login is a switch on the settings page, handled by macOS as a login item (System Settings → General → Login Items); nothing is installed unless you switch it on.
+
+The calendar is read by the app itself, so the permission belongs to it, not to the terminal you started something from. After you rebuild the app macOS may ask again.
+
+## Notifications from AI tools
+
+A hook tells the bar that an AI is done. For Claude Code, add to `~/.claude/settings.json`:
 
 ```json
 {
   "hooks": {
-    "Stop": [{ "hooks": [{ "type": "command", "command": "node /ПУТЬ/mac-agent/bin/notify.mjs claude_done" }] }],
-    "Notification": [{ "hooks": [{ "type": "command", "command": "node /ПУТЬ/mac-agent/bin/notify.mjs claude_wait" }] }]
+    "Stop": [{ "hooks": [{ "type": "command", "command": "node /PATH/TO/mac-agent/bin/notify.mjs claude_done" }] }],
+    "Notification": [{ "hooks": [{ "type": "command", "command": "node /PATH/TO/mac-agent/bin/notify.mjs claude_wait" }] }]
   }
 }
 ```
 
-Уведомление можно отправить и вручную: `node bin/notify.mjs info "Текст"`.
+The bar learns that an agent works in about a second without any hook: the agent on the Mac watches the agents' processes (CPU of the process and of what it started), their session logs and the hooks. A hook makes it exact: add `UserPromptSubmit` → `node /PATH/TO/mac-agent/bin/notify.mjs claude_start` for the start (no pop-up), and the `Stop` hook above ends it at once. Several agents running at once (Claude, Codex, Gemini, Aider, OpenCode, Cursor, Goose) are listed on the settings page; **OK** on the AI screen switches between them and the settings choose which one comes first. Usage figures (tokens, cost) exist for Claude only; the others show their state. Any other tool (Codex, Gemini, a script) can use `node mac-agent/bin/notify.mjs ai_done "Codex: project"` and `ai_wait`. Usage figures (tokens, cost) are read from Claude Code's logs in `~/.claude/projects`. The cost is what the same tokens would cost at API prices (`PRICES` in `mac-agent/src/sources/claude.mjs`), not your subscription's.
 
-### Конфиг агента
+## Work time
 
-`~/.config/busybar-status/config.json`: `port`, `token`, `servers` (`[{ "name", "url" }]`), `calendarExclude` (названия календарей, которые не показывать).
+The agent samples the keyboard and mouse idle time every 15 seconds and adds the active ones up per day in `~/.local/state/busybar-status/work.json` (the last N days, 30 by default). It counts only while it runs and the Mac is awake, so start it at login if you want whole days.
 
-## Разработка приложения
+## Packages
 
-(Ниже справка из шаблона BUSY.)
+Each release has `busybar-status-<version>-<system>` archives for `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64` and `win-x64`. Every one carries its own Node and the bar app's `.tgz`.
+
+| System | What you get | Not available |
+|---|---|---|
+| macOS | `Busybar status.app` with the menu-bar icon (ad-hoc signed, not notarised: open it with right click → Open the first time) | – |
+| Windows, Linux | the agent and `start.cmd` / `start.sh`, which start it and open the settings page | menu-bar app, now-playing, calendar; work time needs `xprintidle` or GNOME on Linux |
+
+Build one yourself: `npm run build && node mac-agent/tools/package.mjs <system>` (macOS packages need a Mac). The Windows and Linux packages are built by the release workflow and have not been run on those systems by the author.
+
+## How it works
+
+```
+computer: agent (Node 24) <--- HTTP every 3 s, a tiny answer if nothing changed ---> bar: JS app
+  media-control, Claude Code logs, idle time, EventKit (via the menu-bar app), server pings
+```
+
+The app on the bar cannot accept connections and cannot write to storage on firmware 1.3.1, so it asks the agent. The agent keeps a revision number and holds each request for up to two seconds while nothing changes (long polling), so a change reaches the bar the moment it happens. The bar counts the playhead, work time and countdowns on its own clock; scrolling and `countdown` elements are drawn by the firmware. Only elements that changed are sent to the display. The settings of the screens travel in the same answer.
+
+`~/.config/busybar-status/config.json` (private, edited from the settings page): port, token, the bar's address and password, servers, calendars to ignore, icon and Dock choice, `.local` name, login switch, and `settings` for the screens (see `mac-agent/src/appsettings.mjs`).
+
+## Development
+
+```sh
+npm run typecheck             # the bar app
+npm run build                 # the bar app -> dist/
+(cd mac-agent && npm test)    # the agent: 23 tests
+node mac-agent/tools/icons.mjs appmeta src/appmeta   # redraws the ghost icons for the bar
+```
+
+`src/` is the bar app (TypeScript, strict, runs in the firmware's JerryScript, not Node; its heap is 512 KiB in the manifest; screens keep their buffers only while they are on the display, and running out of heap restarts the whole bar, so keep per-frame allocations small), `mac-agent/` the agent: `src/` sources, `ui/` the settings page, `tray/` the menu-bar app (Swift), `tools/` icons and packaging. Server tile icons are 9×9 LED versions of [Lucide](https://lucide.dev) icons (ISC licence), made by `mac-agent/tools/glyphs/raster.py` into `src/glyphs.json` (one 81-character string per icon); the buttons on the settings page use Lucide icons too. Read `AGENTS.md` before changing the bar app.
+
+## BUSY app template reference
+
+(From the BUSY template this app started from.)
 
 ## Getting started
 
@@ -178,7 +216,7 @@ By default the build packs that folder into `dist/app.solowey.busybar-status.tgz
 
 ## Releasing
 
-Pushing a git tag matching the manifest `version` (e.g. `0.1.0`) builds the app and attaches `app.solowey.busybar-status-<version>.tgz` to a GitHub release. The release notes open with the app's name, id, version and API version. The release fails when the tag differs from the manifest `version`.
+Pushing a git tag matching the manifest `version` (e.g. `0.1.0`) builds the app and attaches `app.solowey.busybar-status-<version>.tgz` to a GitHub release, followed by the agent packages for macOS, Windows and Linux (see Packages above). The release notes open with the app's name, id, version and API version. The release fails when the tag differs from the manifest `version`.
 
 ## Manifest
 
@@ -201,7 +239,7 @@ Raise `heap_size_kib` if the app runs out of memory.
 
 The app builds on Node 24 — the version in `.nvmrc` and the range `engines` allows. Node 26 breaks the build and is excluded. With `fnm` or `nvm` installed, `fnm use` / `nvm use` picks the right one up from `.nvmrc`.
 
-## Settings
+## Settings file
 
 To give the app a settings screen, add `src/appmeta/settings.json` describing the fields, then read the stored values:
 

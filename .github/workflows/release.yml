@@ -1,14 +1,19 @@
 # Tag 0.1.0 → release with <id>-<version>.tgz attached, whether the tag is pushed from a console or made by a release in the GitHub UI.
 # The tag must match the version in src/appmeta/manifest.json, and the manifest must carry an api_version.
+# The same tag builds the agent's packages (macOS arm64 and Intel, Linux x64 and arm64, Windows) on runners of their own systems
+# and attaches them to the release. Packages are not built by hand: to try the build without a tag, run this workflow from the
+# Actions tab ("Run workflow"); the packages come as artifacts of the run.
 
 name: Release
 
 on:
   push:
     tags: ["[0-9]*.[0-9]*.[0-9]*"]
+  workflow_dispatch:
 
 jobs:
   release:
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -78,12 +83,14 @@ jobs:
   # The agent for the computer, one package per system, attached to the same release.
   agent:
     needs: release
+    # Runs after the release job, and on its own when the workflow is started by hand (the release job is skipped then).
+    if: ${{ !cancelled() && (needs.release.result == 'success' || needs.release.result == 'skipped') }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-14, target: darwin-arm64 }
-          - { os: macos-13, target: darwin-x64 }
+          - { os: macos-15, target: darwin-arm64 }
+          - { os: macos-15-intel, target: darwin-x64 }
           - { os: ubuntu-latest, target: linux-x64 }
           - { os: ubuntu-24.04-arm, target: linux-arm64 }
           - { os: windows-latest, target: win-x64 }
@@ -107,7 +114,15 @@ jobs:
       - run: node mac-agent/tools/package.mjs ${{ matrix.target }}
         shell: bash
 
+      - name: Keep the package as an artifact of the run
+        uses: actions/upload-artifact@v5
+        with:
+          name: busybar-status-${{ matrix.target }}
+          path: mac-agent/release/busybar-status-*-${{ matrix.target }}.*
+          if-no-files-found: error
+
       - name: Attach to the release
+        if: github.ref_type == 'tag'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}

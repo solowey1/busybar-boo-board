@@ -52,3 +52,21 @@ export function bar(id: string, x: number, y: number, w: number, h: number, colo
 export function countdown(id: string, toEpochSec: number, x: number, y: number, o: Partial<El> = {}): El {
   return { id, type: "countdown", timestamp: String(toEpochSec), direction: "time_left", show_hours: "when_non_zero", color: WHITE, x, y, align: "top_left", display: "front", ...o };
 }
+
+/** An XPM2 bitmap element; `rows` use "#" for ink and "." for transparent. */
+export function icon(id: string, rows: string[], x: number, y: number, color: string): El {
+  const body = rows.map((r) => r.replace(/#/g, "a").replace(/\./g, "b")).join("\n");
+  const data = "! XPM2\n" + rows[0].length + " " + rows.length + " 2 1\na c " + color.slice(0, 7) + "\nb c none\n" + body;
+  return { id, type: "xpmbitmap", data, x, y, align: "top_left", display: "front" };
+}
+
+export const ICON_PLAY = ["#..", "##.", "###", "##.", "#.."];
+export const ICON_PAUSE = ["#.#", "#.#", "#.#", "#.#", "#.#"];
+
+/** A thin progress line along the bottom edge: a faint track and, over it, the filled part. */
+export function progressLine(prefix: string, x: number, width: number, fraction: number, color: string): El[] {
+  const els = [bar(prefix + ".bg", x, 15, width, 1, FAINT)];
+  const w = Math.max(0, Math.min(width, Math.round(width * fraction)));
+  if (w > 0) els.push(bar(prefix + ".fg", x, 15, w, 1, color));
+  return els;
+}

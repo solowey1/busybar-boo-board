@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
+import { artworkToXpm } from "../artwork.mjs";
 
 /** Applies one `media-control stream` message to the accumulated state. */
 export function applyMessage(state, msg) {
@@ -40,12 +41,34 @@ export function toMusic(raw, now = Date.now()) {
 export function startMusic({ hub, log, bin = "media-control" }) {
   let state = {};
   let published = null;
+  // The cover is converted once per track, off the hot path; `art` is added to the music part when it is ready.
+  let art = { key: "", xpm: null };
+  let artJob = 0;
   let child;
   let stopped = false;
+
+  const artKey = () => (typeof state.artworkData === "string" ? `${state.title}|${state.artist}|${state.artworkData.length}` : "");
+
+  const updateArt = () => {
+    const key = artKey();
+    if (key === art.key) return;
+    art = { key, xpm: null };
+    if (!key) return;
+    const job = ++artJob;
+    artworkToXpm(state.artworkData)
+      .then((xpm) => {
+        if (job !== artJob || !xpm) return;
+        art = { key, xpm };
+        published = null;
+        publish();
+      })
+      .catch((err) => log(`artwork: ${err.message}`));
+  };
 
   const publish = () => {
     const now = Date.now();
     const music = toMusic(state, now);
+    if (music.active) music.art = art.key === artKey() ? art.xpm : null;
     // Position is dropped from the comparison unless it jumped (seek, buffering).
     const key = (m) => JSON.stringify({ ...m, pos: 0 });
     let changed = published === null || key(published.music) !== key(music);
@@ -69,6 +92,7 @@ export function startMusic({ hub, log, bin = "media-control" }) {
         const msg = JSON.parse(line);
         if (!msg || typeof msg !== "object") return;
         state = applyMessage(state, { diff: msg.diff === true, payload: msg.payload });
+        updateArt();
         publish();
       } catch {
         /* junk line */

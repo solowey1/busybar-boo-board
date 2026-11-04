@@ -74,3 +74,41 @@ jobs:
               --notes-file "$RUNNER_TEMP/details.md" \
               --generate-notes
           fi
+
+  # The agent for the computer, one package per system, attached to the same release.
+  agent:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14, target: darwin-arm64 }
+          - { os: macos-13, target: darwin-x64 }
+          - { os: ubuntu-latest, target: linux-x64 }
+          - { os: ubuntu-24.04-arm, target: linux-arm64 }
+          - { os: windows-latest, target: win-x64 }
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # The packages carry the bar app's archive too.
+      - run: npm run build
+        shell: bash
+
+      - run: node mac-agent/tools/package.mjs ${{ matrix.target }}
+        shell: bash
+
+      - name: Attach to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" mac-agent/release/busybar-status-*-${{ matrix.target }}.* --clobber

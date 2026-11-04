@@ -4,8 +4,14 @@ import { Hub } from "../src/hub.mjs";
 import { createApi } from "../src/server.mjs";
 import { applyMessage, toMusic } from "../src/sources/music.mjs";
 import { costOf, parseUsage, summarize } from "../src/sources/claude.mjs";
-import { addSample } from "../src/sources/work.mjs";
+import { addSample, recent } from "../src/sources/work.mjs";
 import { toCalendar } from "../src/sources/calendar.mjs";
+import { applyChange, loadConfig, publicConfig } from "../src/config.mjs";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { AgentTracker, classify, cpuSeconds, elapsedSeconds, parsePs } from "../src/sources/agents.mjs";
+import { GROUPS, defaultSettings, forBar, localizedGroups, sanitizeSettings } from "../src/appsettings.mjs";
 
 test("hub bumps rev only on real change", () => {
   const hub = new Hub();
@@ -67,7 +73,7 @@ test("calendar: relative times, exclusion, past events dropped", () => {
 test("api: needs token, answers same:true for the current rev, accepts /notify", async () => {
   const hub = new Hub();
   hub.set("music", { active: true });
-  const server = createApi({ hub, token: "secret" });
+  const server = createApi({ hub, app: { getConfig: () => ({ token: "secret", port: 0, trayIcon: "mono", bar: {} }), calendarFeed() {}, activity() {} } });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
@@ -112,4 +118,174 @@ test("work: the day's total becomes yesterday's on the next day, and only then",
   assert.equal(addSample(r, { idle: 1, now: t0 + 48 * 3600_000 }).yesterdaySec, 0);
   // the same day keeps the figure
   assert.equal(addSample(next, { idle: 1, now: t0 + 24 * 3600_000 + 15_000 }).yesterdaySec, 30);
+});
+
+test("settings page: keeps only valid servers in order, hides the password, an empty password means unchanged", () => {
+  const base = { token: "t", servers: [], calendarExclude: [], trayIcon: "mono", launchAtLogin: false, appIcon: "tray", uiHostname: "", settings: defaultSettings(), bar: { host: "", password: "old" } };
+  const next = applyChange(base, {
+    servers: [
+      { name: " B ", url: "https://b.example/health", icon: "globe", color: "#112233" },
+      { name: "no url", url: "ftp://x" },
+      { name: "", url: "https://c.example" },
+      { name: "A", url: "https://a.example", icon: "Not Valid!", color: "red", downColor: "#aabbcc" },
+    ],
+    trayIcon: "rainbow",
+    launchAtLogin: true,
+    appIcon: "both",
+    uiHostname: "Status-Page",
+    bar: { host: "192.168.1.68", password: "" },
+  });
+  assert.deepEqual(next.servers.map((x) => [x.name, x.icon, x.color, x.downColor]), [["B", "globe", "#112233", ""], ["A", "server", "", "#AABBCC"]]);
+  assert.equal(next.trayIcon, "rainbow");
+  assert.equal(next.launchAtLogin, true);
+  assert.equal(next.appIcon, "both");
+  assert.equal(next.uiHostname, "status-page");
+  assert.equal(next.bar.password, "old");
+  assert.equal(applyChange(base, { trayIcon: "nonsense", appIcon: "nowhere", uiHostname: "bad name!" }).trayIcon, "mono");
+  assert.equal(applyChange(base, { appIcon: "nowhere" }).appIcon, "tray");
+  assert.equal(applyChange(base, { uiHostname: "bad name!" }).uiHostname, "");
+  // "busybar" is the bar's own name
+  assert.equal(applyChange(base, { uiHostname: "BusyBar" }).uiHostname, "");
+  assert.equal(applyChange({ ...base, uiHostname: "status" }, { uiHostname: "busybar" }).uiHostname, "status");
+  assert.equal(applyChange(base, { lang: "en" }).lang, "en");
+  assert.equal(applyChange(base, { lang: "de" }).lang, undefined);
+  const shown = publicConfig(next);
+  assert.equal(shown.token, undefined);
+  assert.equal(shown.bar.password, undefined);
+  assert.equal(shown.bar.hasPassword, true);
+});
+
+test("screen settings: bad values fall back, numbers are clamped to their step, the bar gets a flat copy without local fields", () => {
+  const s = sanitizeSettings({ music: { artworkOpacity: 47, color: "nope", startToggle: true, stateIcon: "yes" }, ai: { mascot: false }, work: { keepDays: 9999, hours: -4 }, servers: { view: "grid" }, ghost: { x: 1 } });
+  assert.equal(s.music.artworkOpacity, 50); // steps of 10
+  assert.equal(s.music.color, "#FFFFFF");
+  assert.equal(s.music.startToggle, true);
+  assert.equal(s.ai.mascot, "none"); // it used to be an on/off switch
+  assert.equal(sanitizeSettings({ ai: { mascot: true } }).ai.mascot, "claude");
+  assert.equal(sanitizeSettings({ ai: { mascot: "ghost" } }).ai.mascot, "ghost");
+  assert.equal(s.music.stateIcon, false);
+  assert.equal(s.work.keepDays, 365);
+  assert.equal(s.work.hours, 0);
+  assert.equal(s.servers.view, "tiles");
+  assert.equal(s.ghost, undefined);
+  const flat = forBar(s);
+  assert.equal(flat.musicStartToggle, true);
+  assert.equal(flat.workBreakMinutes, 0);
+  assert.equal(flat.workKeepDays, undefined); // used only on the Mac
+  assert.equal(flat.appFlashMs, 700);
+});
+
+test("api: the settings page needs no token, its data does; the tray app reports back", async () => {
+  const hub = new Hub();
+  let reported = null;
+  const app = { getConfig: () => ({ token: "secret", port: 1, trayIcon: "blue", launchAtLogin: true, appIcon: "dock", bar: { host: "" } }), setTrayState: (b) => (reported = b), calendarFeed() {} };
+  const server = createApi({ hub, app });
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    assert.equal((await fetch(`${base}/ui`)).status, 200);
+    assert.equal((await fetch(`${base}/api/status`)).status, 401);
+    const tray = await (await fetch(`${base}/tray`, { headers: { "X-Token": "secret" } })).json();
+    assert.deepEqual([tray.icon, tray.launchAtLogin, tray.appIcon], ["blue", true, "dock"]);
+    await fetch(`${base}/tray-state`, { method: "POST", headers: { "X-Token": "secret" }, body: JSON.stringify({ loginItem: "enabled" }) });
+    assert.deepEqual(reported, { loginItem: "enabled" });
+  } finally {
+    server.close();
+  }
+});
+
+test("work: a finished day is kept in the history, which survives gaps", () => {
+  const t0 = new Date(2026, 10, 1, 10, 0, 0).getTime();
+  let r = addSample({ day: "", activeSec: 0, firstAt: 0, sessionSec: 0, lastActiveAt: 0 }, { idle: 1, now: t0 });
+  r = addSample(r, { idle: 1, now: t0 + 15_000 });
+  r = addSample(r, { idle: 1, now: t0 + 3 * 24 * 3600_000 });
+  assert.equal(r.days["2026-11-01"], 30);
+  assert.equal(r.yesterdaySec, 0); // two days passed without the agent
+  r = addSample(r, { idle: 1, now: t0 + 4 * 24 * 3600_000 });
+  assert.equal(r.yesterdaySec, 15);
+});
+
+test("work: keepDays trims the history and recent() lists the last finished days, oldest first", () => {
+  const t0 = new Date(2026, 10, 1, 10, 0, 0).getTime();
+  let r = addSample({ day: "", activeSec: 0, firstAt: 0, sessionSec: 0, lastActiveAt: 0 }, { idle: 1, now: t0, keepDays: 2 });
+  for (let d = 1; d <= 4; d++) r = addSample(r, { idle: 1, now: t0 + d * 24 * 3600_000, keepDays: 2 });
+  assert.equal(Object.keys(r.days).length, 2);
+  const last = recent({ days: { "2026-11-04": 600, "2026-11-03": 60 } }, new Date(2026, 10, 5, 12, 0, 0).getTime(), 3);
+  assert.deepEqual(last, [0, 60, 600]);
+});
+
+test("English texts for the settings page cover every field of every group", () => {
+  const ru = GROUPS;
+  const en = localizedGroups("en");
+  assert.equal(en.length, ru.length);
+  for (const [i, g] of ru.entries()) {
+    assert.ok(en[i].label); // "AI" is the same in both
+    for (const [k, f] of Object.entries(g.fields)) {
+      assert.ok(en[i].fields[k].label && en[i].fields[k].label !== f.label, `${g.id}.${k}`);
+      for (const o of f.options ?? []) assert.ok(en[i].fields[k].options.find((x) => x.value === o.value).label);
+    }
+  }
+  assert.equal(localizedGroups("ru"), GROUPS);
+});
+
+test("agents: ps lines are parsed and recognised by the program's own name or the script it runs", () => {
+  const procs = parsePs(` 2097 88861   9:31.28    22:11:47 /Users/x/.vscode/extensions/anthropic.claude-code-2.1.317/resources/native-binary/claude --output-format stream-json
+12005 56906   0:00.86    03:54:12 /Applications/Claude.app/Contents/Frameworks/Claude Helper.app/Contents/MacOS/Claude Helper --type=utility
+ 7001     1   1:00.00 01-02:03:04 node /usr/local/lib/node_modules/@openai/codex/bin/codex.js --full-auto
+ 7002  7001   0:01.00       00:10 npm test`);
+  assert.equal(procs.length, 4);
+  assert.deepEqual([procs[0].cpu, procs[2].up], [571.28, 93784]);
+  assert.deepEqual(procs.map((p) => classify(p.command)), ["claude", null, "codex", null]);
+  assert.equal(cpuSeconds("1:02:03"), 3723);
+  assert.equal(elapsedSeconds("22:43"), 1363);
+  assert.equal(classify("/Applications/Claude.app/Contents/MacOS/Claude"), null); // the desktop app is not a coding agent
+});
+
+test("agents: busy from CPU used by the agent or what it started, from log writes, from hooks; a hook's idle wins for a moment", () => {
+  const proc = (pid, ppid, cpu, command) => ({ pid, ppid, cpu, up: 600, command });
+  const t = new AgentTracker();
+  const idle = [proc(1, 0, 10, "/x/claude --print"), proc(2, 1, 1, "bash -c sleep 9")];
+  t.update(idle, 0);
+  t.update(idle.map((p) => ({ ...p })), 1000);
+  assert.deepEqual(t.snapshot(1000).map((a) => [a.id, a.busy, a.up]), [["claude", false, 10]]);
+  // a child of the agent (a test run, say) burns CPU: the agent is busy
+  t.update([proc(1, 0, 10.01, "/x/claude --print"), proc(2, 1, 1.5, "bash -c sleep 9")], 2000);
+  assert.equal(t.snapshot(2000)[0].busy, true);
+  assert.equal(t.snapshot(7000)[0].busy, true); // held for a few seconds
+  assert.equal(t.snapshot(9000)[0].busy, false);
+  // a log write
+  t.touch("claude", 20_000);
+  assert.equal(t.snapshot(21_000)[0].busy, true);
+  assert.equal(t.snapshot(30_000)[0].busy, false);
+  // hooks
+  t.hook("claude", "working", 40_000);
+  assert.equal(t.snapshot(100_000)[0].busy, true);
+  t.hook("claude", "idle", 101_000);
+  t.touch("claude", 101_500); // the last answer's own writes
+  assert.equal(t.snapshot(102_000)[0].busy, false);
+  // an agent that exists only through a hook shows up too
+  t.hook("other", "working", 102_000);
+  assert.deepEqual(t.snapshot(102_500).filter((a) => a.id === "other").map((a) => a.busy), [true]);
+});
+
+test("hub: a held request wakes up the moment something changes, or after its time", async () => {
+  const hub = new Hub();
+  const rev = hub.rev;
+  const t0 = Date.now();
+  setTimeout(() => hub.set("x", { a: 1 }), 30);
+  await hub.waitForChange(rev, 2000);
+  assert.ok(Date.now() - t0 < 500 && hub.rev === rev + 1);
+  const t1 = Date.now();
+  await hub.waitForChange(hub.rev, 60);
+  assert.ok(Date.now() - t1 >= 50);
+});
+
+test("calendar: red by default, and a saved old default (blue) follows", () => {
+  assert.equal(defaultSettings().calendar.color, "#FF3B30");
+  const dir = mkdtempSync(join(tmpdir(), "bbs-"));
+  const file = join(dir, "config.json");
+  writeFileSync(file, JSON.stringify({ token: "t", settings: { calendar: { minutes: 5, color: "#4DA3FF" } } }));
+  assert.equal(loadConfig(file).settings.calendar.color, "#FF3B30");
+  writeFileSync(file, JSON.stringify({ token: "t", settings: { calendar: { minutes: 5, color: "#00FF00" } } }));
+  assert.equal(loadConfig(file).settings.calendar.color, "#00FF00");
 });

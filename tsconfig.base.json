@@ -14,11 +14,7 @@
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
-
-    /* Paths */
-    "paths": {
-      "@shared/*": ["./shared/*"]
-    },
+    "resolveJsonModule": true,
 
     /* Linting */
     "strict": true,
@@ -26,7 +22,5 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
-  },
-  /* The app, and the platform it builds against. */
-  "include": ["./src", "./shared", "./types"]
+  }
 }

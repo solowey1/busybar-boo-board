@@ -1,0 +1,35 @@
+{
+  "format_version": 1,
+  "version": 1,
+  "fields": {
+    "lang": {
+      "type": "enum",
+      "label": "Language",
+      "default": "en",
+      "options": [
+        {
+          "value": "ru",
+          "label": "Русский"
+        },
+        {
+          "value": "en",
+          "label": "English"
+        }
+      ]
+    },
+    "agent_host": {
+      "type": "string",
+      "label": "IP",
+      "description": "The address of the Mac that runs the agent",
+      "default": "192.168.1.35",
+      "max_length": 64
+    },
+    "agent_port": {
+      "type": "integer",
+      "label": "Port",
+      "default": 8787,
+      "min": 1024,
+      "max": 65535
+    }
+  }
+}

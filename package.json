@@ -6,12 +6,14 @@
   "author": "solowey1",
   "type": "module",
   "scripts": {
-    "typecheck": "tsc",
-    "build": "busy-cli build",
-    "app:install": "busy-cli app install",
-    "app:uninstall": "busy-cli app uninstall",
-    "app:run": "busy-cli app run",
-    "app:stop": "busy-cli app stop"
+    "typecheck": "npm run typecheck --workspaces",
+    "build": "npm run build --workspaces --",
+    "versions": "node tools/check-versions.mjs",
+    "app:install": "npm run app:install -w apps/status --",
+    "app:uninstall": "npm run app:uninstall -w apps/status --",
+    "app:run": "npm run app:run -w apps/status --",
+    "app:stop": "npm run app:stop -w apps/status --",
+    "test": "npm test --prefix mac-agent"
   },
   "engines": {
     "node": ">=24 <26"
@@ -23,5 +25,8 @@
   },
   "dependencies": {
     "@busy-app/busy-lib": "^0.21.1"
-  }
+  },
+  "workspaces": [
+    "apps/*"
+  ]
 }

@@ -1,4 +1,3 @@
-import manifest from "./appmeta/manifest.json";
 import type { AppSettings, Config, ScreenId } from "./types";
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -66,9 +65,9 @@ export function mergeSettings(base: AppSettings, from: Partial<AppSettings> | un
 }
 
 /** Reads the app's settings from the device; falls back to the defaults when unavailable. */
-export async function loadConfig(): Promise<Config> {
+export async function loadConfig(appId: string): Promise<Config> {
   try {
-    const res = await fetch(`http://localhost/api/apps/settings?app_id=${manifest.id}`);
+    const res = await fetch(`http://localhost/api/apps/settings?app_id=${appId}`);
     if (!res.ok) return DEFAULTS;
     const doc = JSON.parse(await res.text()) as { values?: unknown };
     const v = flatten(doc.values ?? doc);
@@ -85,7 +84,7 @@ export async function loadConfig(): Promise<Config> {
       s: DEFAULT_SETTINGS,
     };
   } catch (err) {
-    console.error(`${manifest.id}: settings: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`${appId}: settings: ${err instanceof Error ? err.message : String(err)}`);
     return DEFAULTS;
   }
 }

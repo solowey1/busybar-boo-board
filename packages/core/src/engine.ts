@@ -1,20 +1,14 @@
-import { device } from "@shared/device";
-import manifest from "./appmeta/manifest.json";
+import { device } from "../../../shared/device";
 import { fetchState } from "./agent";
 import { aiPages, orderedAgents } from "./agents";
 import { loadConfig, mergeSettings } from "./config";
-import { calendar } from "./screens/calendar";
-import { claude } from "./screens/claude";
-import { music } from "./screens/music";
-import { servers } from "./screens/servers";
-import { work } from "./screens/work";
 import type { AgentAlert, AgentState, Config, Ctx, El, Screen, ScreenId } from "./types";
 import { DIM, RED, WHITE, label, rgba, status, tr } from "./util";
 
-/** The name the app draws under; the device clears elements by this id. */
-const APP = manifest.id;
-
-const ALL: Screen[] = [music, claude, work, calendar, servers];
+/** The name the app draws under (its id); the device clears elements by it. Set by `run`. */
+let APP = "";
+/** The screens this app has: all five in the combined app, one in each module. Set by `run`. */
+let ALL: Screen[] = [];
 // A request to the Mac is held there for up to this long while nothing changes, so news arrives at once.
 const POLL_WAIT_MS = 2000;
 const POLL_OFFLINE_MS = 10000;
@@ -91,6 +85,18 @@ function alertHeader(cfg: Config, kind: string): string {
   return tr(cfg, "notice");
 }
 
+/**
+ * Runs an app made of these screens. The combined app has all of them and the wheel goes round; a module has one, and
+ * handles only the news that belongs to it (a servers module does not show that a meeting is near).
+ */
+export function run(appId: string, screens: Screen[]): void {
+  APP = appId;
+  ALL = screens;
+  main();
+}
+
+const has = (id: ScreenId): boolean => ALL.some((s) => s.id === id);
+
 function main(): void {
   let cfg: Config | null = null;
   let enabled: Screen[] = [];
@@ -140,9 +146,9 @@ function main(): void {
     ALL.forEach((s) => {
       if (isOn(s, c)) ids.push(s.id);
     });
-    if (c.screens.claude && ids.indexOf("agents") < 0) ids.push("agents");
-    if ((c.s.calendarMinutes > 0 || c.s.appHideEmpty) && ids.indexOf("calendar") < 0) ids.push("calendar");
-    if ((c.s.workHours > 0 || c.s.workBreakMinutes > 0) && ids.indexOf("work") < 0) ids.push("work");
+    if (has("claude") && c.screens.claude && ids.indexOf("agents") < 0) ids.push("agents");
+    if (has("calendar") && ids.indexOf("calendar") < 0) ids.push("calendar");
+    if (has("work") && ids.indexOf("work") < 0) ids.push("work");
     // "meta" says when the settings page saved something, so the app reads its settings again.
     return ids.concat(["meta"]);
   };
@@ -173,9 +179,12 @@ function main(): void {
     show([label("a.h", header, 0, { color, scroll_rate: 0 }), label("a.t", text, 8, { color: WHITE, scroll_rate: 1500 })], ALERT_MS, { sound: SOUND_REMINDER, led: color });
   };
 
+  /** Whether this app has the screen that the news belongs to: a module shows only its own. */
+  const handles = (kind: string): boolean => (isAi(kind) ? has("claude") : kind.indexOf("server") === 0 ? has("servers") : kind.indexOf("calendar") === 0 ? has("calendar") : kind.indexOf("work") === 0 ? has("work") : true);
+
   const showAlert = (a: AgentAlert): void => {
     const now = Date.now();
-    if (!cfg) return;
+    if (!cfg || !handles(a.kind)) return;
     if (isAi(a.kind)) {
       const wait = a.kind.indexOf("wait") >= 0;
       const text = a.text.replace(/^(Готово|Done):\s*/, "");
@@ -214,7 +223,8 @@ function main(): void {
       const stage = remaining <= 0 && remaining > -60 ? 2 : remaining <= 60 && remaining > 0 ? 1 : remaining <= cfg.s.calendarMinutes * 60 && remaining > 0 ? 0 : -1;
       if (stage >= 0 && !done[key + "#" + stage]) {
         done[key + "#" + stage] = true;
-        show(calendar.elements({ ...ctx, view: 0 }), ALERT_MS, { sound: stage === 2 ? SOUND_START : SOUND_REMINDER, led: rgba(cfg.s.calendarColor) });
+        const cal = ALL.filter((s) => s.id === "calendar")[0];
+        if (cal) show(cal.elements({ ...ctx, view: 0 }), ALERT_MS, { sound: stage === 2 ? SOUND_START : SOUND_REMINDER, led: rgba(cfg.s.calendarColor) });
       }
     }
     if (data.work) {
@@ -388,7 +398,7 @@ function main(): void {
     if (stopped || !cfg || polling) return;
     polling = true;
     const c = cfg;
-    fetchState(c, data.rev, wantedParts(c), POLL_WAIT_MS)
+    fetchState(c, APP, data.rev, wantedParts(c), POLL_WAIT_MS)
       .then((next) => {
         online = true;
         if (next === null) return;
@@ -508,7 +518,7 @@ function main(): void {
   };
 
   function reload(): void {
-    loadConfig()
+    loadConfig(APP)
       .then((c) => {
         const same = cfg !== null && cfg.host === c.host && cfg.port === c.port;
         // The screens' settings are not the bar's own: they stay as the Mac last sent them.
@@ -520,7 +530,7 @@ function main(): void {
       .catch(report);
   }
 
-  loadConfig()
+  loadConfig(APP)
     .then((c) => {
       apply(c);
       if (enabled.length > 0) current = enabled[0].id;

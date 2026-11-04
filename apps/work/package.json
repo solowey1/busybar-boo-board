@@ -1,0 +1,16 @@
+{
+  "name": "@busybar-status/work",
+  "private": true,
+  "version": "0.2.0",
+  "description": "The work-time screen of Busybar status: the activity grid, yesterday and today.",
+  "author": "solowey1",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc",
+    "build": "busy-cli build",
+    "app:install": "busy-cli app install",
+    "app:uninstall": "busy-cli app uninstall",
+    "app:run": "busy-cli app run",
+    "app:stop": "busy-cli app stop"
+  }
+}

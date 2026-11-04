@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Busybar status</title>
+<style>
+  :root { color-scheme: light dark; --bg:#f5f5f7; --card:#fff; --ink:#1d1d1f; --mute:#6e6e73; --line:#e3e3e8; --accent:#d97757; --ok:#2da44e; --bad:#d1242f; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#161618; --card:#1f1f22; --ink:#f2f2f4; --mute:#9a9aa1; --line:#2d2d32; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; }
+  .wrap { display:grid; grid-template-columns:200px 1fr; min-height:100vh; }
+  nav { padding:20px 12px; border-right:1px solid var(--line); position:sticky; top:0; height:100vh; }
+  nav h1 { font-size:15px; margin:0 8px 16px; display:flex; gap:8px; align-items:center; }
+  nav button { display:block; width:100%; text-align:left; background:none; border:0; color:var(--ink); padding:8px 10px; border-radius:8px; font:inherit; cursor:pointer; }
+  nav button:hover { background:var(--line); }
+  nav button.on { background:var(--tab, var(--accent)); color:#fff; }
+  nav .sep { height:1px; background:var(--line); margin:10px 8px; }
+  main { padding:24px 32px 96px; max-width:800px; }
+  h2 { margin:0 0 4px; font-size:22px; }
+  h3 { margin:22px 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--mute); }
+  .sub { color:var(--mute); margin:0 0 20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:4px 16px; margin-bottom:16px; }
+  .row { display:flex; justify-content:space-between; gap:16px; align-items:center; padding:12px 0; border-bottom:1px solid var(--line); }
+  .row:last-child { border-bottom:0; }
+  .row .t { flex:1; min-width:0; } .row .d { color:var(--mute); font-size:12px; } .row .e { color:var(--bad); font-size:12px; }
+  input[type=text], input[type=password], input[type=number], select, textarea { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:6px 10px; min-width:0; }
+  input[type=number] { width:100px; } input.wide { width:260px; }
+  input[type=color] { width:38px; height:30px; padding:2px; border:1px solid var(--line); border-radius:8px; background:var(--bg); cursor:pointer; }
+  input:focus, textarea:focus, select:focus { outline:2px solid var(--accent); outline-offset:-1px; }
+  input.bad { border-color:var(--bad); }
+  .sw { position:relative; width:42px; height:24px; flex:none; }
+  .sw input { opacity:0; position:absolute; inset:0; margin:0; cursor:pointer; z-index:1; }
+  .sw i { position:absolute; inset:0; background:var(--line); border-radius:12px; transition:.15s; }
+  .sw i::after { content:""; position:absolute; left:2px; top:2px; width:20px; height:20px; background:#fff; border-radius:50%; transition:.15s; box-shadow:0 1px 3px #0004; }
+  .sw input:checked + i { background:var(--accent); } .sw input:checked + i::after { left:20px; }
+  .btn { white-space:nowrap; background:var(--accent); color:#fff; border:0; border-radius:8px; padding:8px 16px; font:inherit; cursor:pointer; display:inline-flex; gap:6px; align-items:center; }
+  .btn.ghost { background:none; color:var(--ink); border:1px solid var(--line); }
+  .btn.small { padding:5px 8px; } .btn.danger:hover { color:var(--bad); border-color:var(--bad); }
+  .btn:disabled { opacity:.4; cursor:default; }
+  svg.i { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+  .bar { position:fixed; left:200px; right:0; bottom:0; padding:12px 32px; background:var(--card); border-top:1px solid var(--line); display:flex; gap:12px; align-items:center; }
+  .bar .msg { color:var(--mute); flex:1; } .bar .msg.err { color:var(--bad); }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--mute); margin-right:6px; }
+  .dot.ok { background:var(--ok); } .dot.bad { background:var(--bad); }
+  .opts { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px; padding:12px 0; }
+  .opts label { border:1px solid var(--line); border-radius:10px; padding:10px; text-align:center; cursor:pointer; }
+  .opts label.on { border-color:var(--accent); outline:2px solid var(--accent); outline-offset:-2px; }
+  .opts input { display:none; } .opts svg.pic { display:block; margin:0 auto 6px; height:36px; width:auto; }
+  .servers .srv { display:grid; grid-template-columns:auto 1fr auto; gap:8px 12px; align-items:center; padding:12px 0; border-bottom:1px solid var(--line); }
+  .servers .srv:last-child { border-bottom:0; }
+  .servers .fields { display:flex; gap:8px; flex-wrap:wrap; } .servers .fields input[type=text] { flex:1; min-width:120px; }
+  .servers .more { grid-column:2 / 4; display:flex; gap:14px; align-items:center; flex-wrap:wrap; color:var(--mute); font-size:12px; }
+  .servers .more label { display:flex; gap:6px; align-items:center; }
+  .tile { width:34px; height:34px; border-radius:9px; display:grid; place-items:center; }
+  .glyphs { display:flex; flex-wrap:wrap; gap:6px; }
+  .glyphs button { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:4px; cursor:pointer; line-height:0; color:var(--ink); }
+  .glyphs button.on { outline:2px solid var(--accent); }
+  .heat { display:grid; grid-auto-flow:column; grid-template-rows:repeat(7, 14px); grid-auto-columns:14px; justify-content:start; gap:3px; padding:14px 0; overflow-x:auto; }
+  .heat i { width:14px; height:14px; border-radius:3px; background:var(--line); }
+  .legend { display:flex; gap:4px; align-items:center; color:var(--mute); font-size:12px; padding-bottom:12px; } .legend i { width:12px; height:12px; border-radius:3px; display:inline-block; }
+  .masc { display:flex; gap:24px; padding:14px 0; } .masc div { text-align:center; color:var(--mute); font-size:12px; } .masc svg { display:block; margin:0 auto 6px; }
+  .note { padding:12px 0; color:var(--mute); }
+  .warn { background:#d1242f18; border:1px solid var(--bad); color:var(--ink); border-radius:10px; padding:10px 14px; margin-bottom:16px; }
+  code { background:var(--bg); padding:1px 5px; border-radius:5px; }
+  /* Phones and narrow windows: the tabs become a strip on top, rows stack, the save bar spans the width. */
+  @media (max-width: 760px) {
+    .wrap { display:block; }
+    nav { position:sticky; top:0; z-index:5; height:auto; display:flex; gap:6px; align-items:center; overflow-x:auto; padding:8px 12px; border-right:0; border-bottom:1px solid var(--line); background:var(--bg); -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+    nav::-webkit-scrollbar { display:none; }
+    nav h1 { font-size:0; margin:0 4px 0 0; flex:none; }
+    nav button { width:auto; flex:none; white-space:nowrap; padding:9px 14px; }
+    nav .sep { width:1px; height:22px; margin:0 2px; flex:none; }
+    main { padding:16px 14px calc(120px + env(safe-area-inset-bottom)); max-width:none; }
+    h2 { font-size:20px; }
+    .card { padding:2px 12px; }
+    .row { flex-wrap:wrap; gap:8px 12px; }
+    .row .t { flex:1 1 200px; }
+    input[type=text], input[type=password], input[type=number], select, textarea { font-size:16px; padding:9px 10px; }
+    input.wide { width:100%; flex:1 1 100%; }
+    input[type=number] { width:110px; }
+    select { max-width:100%; }
+    input[type=color] { width:46px; height:38px; }
+    .btn { padding:10px 16px; } .btn.small { padding:8px 10px; }
+    .bar { left:0; padding:10px 14px calc(10px + env(safe-area-inset-bottom)); flex-wrap:wrap; gap:8px; }
+    .bar .msg { flex:1 1 100%; font-size:12px; }
+    .bar .btn { flex:1; justify-content:center; }
+    .servers .srv { grid-template-columns:auto 1fr; }
+    .servers .srv > :nth-child(3) { grid-column:1 / -1; justify-self:end; }
+    .servers .more { grid-column:1 / -1; }
+    .opts { grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); }
+    .masc { flex-wrap:wrap; gap:16px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav id="nav"></nav>
+  <main id="main"><p class="sub">…</p></main>
+</div>
+<div class="bar"><span class="msg" id="msg"></span><button class="btn ghost" id="reload"></button><button class="btn" id="save"></button></div>
+
+<script>
+const ICONS = {"trash-2": "<path d=\"M10 11v6\" /> <path d=\"M14 11v6\" /> <path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\" /> <path d=\"M3 6h18\" /> <path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\" />", "chevron-up": "<path d=\"m18 15-6-6-6 6\" />", "chevron-down": "<path d=\"m6 9 6 6 6-6\" />", "plus": "<path d=\"M5 12h14\" /> <path d=\"M12 5v14\" />", "save": "<path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\" /> <path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\" /> <path d=\"M7 3v4a1 1 0 0 0 1 1h7\" />", "undo-2": "<path d=\"M9 14 4 9l5-5\" /> <path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\" />", "link": "<path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\" /> <path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\" />", "copy-check": "<path d=\"m12 15 2 2 4-4\" /> <rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\" /> <path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\" />", "external-link": "<path d=\"M15 3h6v6\" /> <path d=\"M10 14 21 3\" /> <path d=\"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6\" />", "server": "<rect width=\"20\" height=\"8\" x=\"2\" y=\"2\" rx=\"2\" ry=\"2\" /> <rect width=\"20\" height=\"8\" x=\"2\" y=\"14\" rx=\"2\" ry=\"2\" /> <line x1=\"6\" x2=\"6.01\" y1=\"6\" y2=\"6\" /> <line x1=\"6\" x2=\"6.01\" y1=\"18\" y2=\"18\" />", "palette": "<path d=\"M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z\" /> <circle cx=\"13.5\" cy=\"6.5\" r=\".5\" fill=\"currentColor\" /> <circle cx=\"17.5\" cy=\"10.5\" r=\".5\" fill=\"currentColor\" /> <circle cx=\"6.5\" cy=\"12.5\" r=\".5\" fill=\"currentColor\" /> <circle cx=\"8.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\" />", "arrow-up": "<path d=\"m5 12 7-7 7 7\" /> <path d=\"M12 19V5\" />", "arrow-down": "<path d=\"M12 5v14\" /> <path d=\"m19 12-7 7-7-7\" />", "check": "<path d=\"M20 6 9 17l-5-5\" />", "circle-alert": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <line x1=\"12\" x2=\"12\" y1=\"8\" y2=\"12\" /> <line x1=\"12\" x2=\"12.01\" y1=\"16\" y2=\"16\" />"};
+const T = new URLSearchParams(location.search).get('t') || localStorage.getItem('bbs-token') || '';
+if (T) localStorage.setItem('bbs-token', T);
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const icon = name => `<svg class="i" viewBox="0 0 24 24">${ICONS[name] || ''}</svg>`;
+
+// ---- texts: the whole page follows the app's language ------------------------------------------
+const L = {
+  ru: {
+    title: 'Busybar status — настройки', loading: 'Загрузка…', general: 'Общее', app: 'Приложение', discard: 'Отменить', save: 'Сохранить',
+    unsaved: 'Есть несохранённые изменения', connected: 'Подключено к бару', barDown: 'Бар не отвечает', saving: 'Сохраняю…', saved: 'Сохранено', failed: 'Не получилось: ',
+    loadFailed: 'Не удалось загрузить настройки: {e}. Откройте страницу из значка в строке меню.',
+    screenSub: 'Настройки экрана хранятся на Mac и приходят на бар вместе с данными.', showScreen: 'Показывать экран', showScreenOn: 'Это настройка самого приложения на баре.', showScreenOff: 'Бар не отвечает: настройка недоступна.', byDefault: 'По умолчанию',
+    generalSub: 'Подключение к бару, язык и то, как приложение выглядит на Mac.', barWarn: 'Бар не отвечает{e}. Настройки приложения на баре станут доступны после подключения.',
+    bar: 'Бар', barAddr: 'Адрес бара', barAddrD: 'IP из веб-интерфейса бара', barPass: 'Пароль HTTP API', passSaved: 'Сохранён. Оставьте пустым, чтобы не менять.', passNone: 'Не задан.', password: 'пароль',
+    bound: 'Приложение на баре ищет этот Mac по адресу {a}', boundOk: 'IP, порт и токен уже записаны в настройки приложения.', boundNo: 'Записать IP, порт и токен в настройки приложения.', bind: 'Привязать',
+    language: 'Язык', languageD: 'Приложение целиком: бар, эта страница, меню в строке меню и уведомления. Применяется сразу.',
+    mac: 'Приложение на Mac', login: 'Запускать при входе в систему', loginNoTray: 'Приложение в строке меню не запущено: запустите его, чтобы менять это.', loginOn: 'Включён: приложение откроется само после входа.', loginAsk: 'Нужно подтвердить: Системные настройки → Основные → Объекты входа.', loginOff: 'Выключен. Приложение можно убрать из «Объектов входа» и в Системных настройках.',
+    showIcon: 'Показывать значок приложения', showIconD: 'Применяется сразу после сохранения.', iconTray: 'Только в строке меню', iconDock: 'Только в Доке', iconBoth: 'В строке меню и в Доке', iconNone: 'Нигде',
+    noneWarn: 'Значка не будет ни в Доке, ни в строке меню. Настройки останутся доступны только по адресу в браузере: {u}. Сохраните этот адрес, а токен браузер запомнит сам.',
+    nameLabel: 'Имя адреса в сети', nameOn: 'Настройки откроются по {u} с любого устройства в сети (только имена .local)', nameOff: 'Например «busy-status»: будет открываться по адресу busy-status.local. Пусто — не создавать.', nameReserved: 'Имя «{n}» занято: так называется сам бар.',
+    trayIcon: 'Значок в строке меню', trayNote: '«Системная» меняет цвет вместе со строкой меню (светлой или тёмной).', trayMono: 'Системная', trayOrange: 'Оранжевая', trayRainbow: 'Разноцветная', trayGreen: 'Зелёная', trayBlue: 'Синяя',
+    srvTitle: 'Адреса для проверки', srvName: 'Название', srvUp: 'Выше', srvDown: 'Ниже', srvDel: 'Убрать', srvOk: 'В сети', srvNo: 'Без ответа', srvReset: 'Цвета по умолчанию', srvNone: 'Серверов нет.', srvAdd: 'Добавить сервер', srvNote: 'Ответ 2xx или 3xx считается «в сети». Проверка раз в минуту. Порядок здесь — порядок на баре, до 12 серверов.', srvIsDown: 'не отвечает', srvIsUp: 'в сети',
+    activity: 'Активность', less: 'меньше', more: 'больше', heatNote: 'за {n} дн., наведите на квадрат', noData: 'нет данных',
+    calSources: 'Источники', calNoData: 'нет данных', calOk: 'доступ есть, ближайших встреч: {n}', calNo: 'доступа нет. Откройте «Системные настройки → Конфиденциальность → Календари» и разрешите «Busybar status»', calExclude: 'Не показывать календари', calExcludeD: '(по одному названию в строке)',
+    needToken: 'Нужен токен', needTokenD: 'Эта страница открыта по новому адресу, и браузер ещё не знает токен. Вставьте его: он лежит в ~/.config/busybar-status/config.json, а на странице настроек, открытой из значка в строке меню, есть готовая ссылка.', tokenPlaceholder: 'токен', tokenGo: 'Открыть',
+    linkTitle: 'Ссылка с токеном', linkD: 'Для другого браузера или устройства: откроется сразу, токен запомнится.', copy: 'Скопировать', copied: 'Скопировано',
+    aiAgents: 'Агенты на этом компьютере', aiAgentNone: 'Сейчас ни один не запущен', aiWorking: 'работает', aiIdle2: 'ждёт', aiUp: 'запущен {n} мин',
+    aiNow: 'Сейчас', aiActive: 'Claude: окно идёт, {t} токенов, ${c} по ценам API', aiIdle: 'Claude: окна сейчас нет', aiPrices: 'Цены моделей лежат в mac-agent/src/sources/claude.mjs', aiOthers: 'Другие нейросети', aiOthersT: 'Сообщить о завершении можно из любого инструмента', aiOthersD: 'Команда: {c}; для ожидания ответа — {w}. Экран и маскот отреагируют так же, как на Claude; у других нейросетей свой маскот — привидение.', aiMascots: 'Маскоты', mClaude: 'Claude', mGhost: 'Привидение',
+  },
+  en: {
+    title: 'Busybar status — settings', loading: 'Loading…', general: 'General', app: 'App', discard: 'Discard', save: 'Save',
+    unsaved: 'You have unsaved changes', connected: 'Connected to the bar', barDown: 'The bar is not answering', saving: 'Saving…', saved: 'Saved', failed: 'Failed: ',
+    loadFailed: 'Could not load the settings: {e}. Open this page from the menu-bar icon.',
+    screenSub: "The screen's settings are kept on the Mac and reach the bar with the data.", showScreen: 'Show the screen', showScreenOn: "This is a setting of the app on the bar itself.", showScreenOff: 'The bar is not answering: the setting is unavailable.', byDefault: 'Default',
+    generalSub: 'Connection to the bar, language and how the app looks on the Mac.', barWarn: 'The bar is not answering{e}. The settings of the app on the bar will be available once it connects.',
+    bar: 'Bar', barAddr: "Bar's address", barAddrD: "The IP from the bar's web interface", barPass: 'HTTP API password', passSaved: 'Saved. Leave empty to keep it.', passNone: 'Not set.', password: 'password',
+    bound: 'The app on the bar looks for this Mac at {a}', boundOk: "The IP, port and token are already in the app's settings.", boundNo: "Write the IP, port and token into the app's settings.", bind: 'Bind',
+    language: 'Language', languageD: 'The whole app: the bar, this page, the menu-bar menu and the notifications. Applied at once.',
+    mac: 'App on this Mac', login: 'Start at login', loginNoTray: 'The menu-bar app is not running: start it to change this.', loginOn: 'On: the app opens by itself after you log in.', loginAsk: 'Needs your approval: System Settings → General → Login Items.', loginOff: 'Off. You can also remove the app from Login Items in System Settings.',
+    showIcon: "Show the app's icon", showIconD: 'Applied right after saving.', iconTray: 'Menu bar only', iconDock: 'Dock only', iconBoth: 'Menu bar and Dock', iconNone: 'Nowhere',
+    noneWarn: 'There will be no icon in the Dock or the menu bar. The settings stay reachable only at their address in a browser: {u}. Save that address; the browser remembers the token itself.',
+    nameLabel: 'Name on the network', nameOn: 'The settings open at {u} from any device on the network (.local names only)', nameOff: 'For example "busy-status": it will open at busy-status.local. Empty means none.', nameReserved: 'The name "{n}" is taken: it is the name of the bar itself.',
+    trayIcon: 'Menu-bar icon', trayNote: '"System" changes colour together with the menu bar (light or dark).', trayMono: 'System', trayOrange: 'Orange', trayRainbow: 'Rainbow', trayGreen: 'Green', trayBlue: 'Blue',
+    srvTitle: 'Addresses to check', srvName: 'Name', srvUp: 'Up', srvDown: 'Down', srvDel: 'Remove', srvOk: 'Up', srvNo: 'Not answering', srvReset: 'Default colours', srvNone: 'No servers.', srvAdd: 'Add a server', srvNote: 'A 2xx or 3xx answer counts as "up". Checked once a minute. The order here is the order on the bar, up to 12 servers.', srvIsDown: 'not answering', srvIsUp: 'up',
+    activity: 'Activity', less: 'less', more: 'more', heatNote: 'last {n} days, hover a square', noData: 'no data',
+    calSources: 'Sources', calNoData: 'no data', calOk: 'access granted, upcoming meetings: {n}', calNo: 'no access. Open System Settings → Privacy & Security → Calendars and allow "Busybar status"', calExclude: 'Ignore calendars', calExcludeD: '(one name per line)',
+    needToken: 'A token is needed', needTokenD: 'This page was opened at a new address and the browser does not know the token yet. Paste it: it is in ~/.config/busybar-status/config.json, and the settings page opened from the menu-bar icon has a ready link.', tokenPlaceholder: 'token', tokenGo: 'Open',
+    linkTitle: 'Link with the token', linkD: 'For another browser or device: it opens at once and the token is remembered.', copy: 'Copy', copied: 'Copied',
+    aiAgents: 'Agents on this computer', aiAgentNone: 'None is running now', aiWorking: 'working', aiIdle2: 'idle', aiUp: 'up {n} min',
+    aiNow: 'Now', aiActive: 'Claude: window is running, {t} tokens, ${c} at API prices', aiIdle: 'Claude: no window right now', aiPrices: 'Model prices are in mac-agent/src/sources/claude.mjs', aiOthers: 'Other AIs', aiOthersT: 'Any tool can report that it has finished', aiOthersD: 'Command: {c}; to wait for a reply: {w}. The screen and the mascot react as they do for Claude; other AIs get a mascot of their own: the ghost.', aiMascots: 'Mascots', mClaude: 'Claude', mGhost: 'Ghost',
+  },
+};
+let lang = 'ru';
+const t = (k, v = {}) => (L[lang][k] ?? L.ru[k] ?? k).replace(/\{(\w+)\}/g, (_, x) => (v[x] ?? ''));
+
+let D = null;          // answer of /api/config
+let S = null;          // answer of /api/status
+let bar = {};          // edited values of the app on the bar (flat, as the bar stores them)
+let agent = {};        // edited settings of the agent
+let sets = {};         // edited settings of the screens: group -> field -> value
+let tab = location.hash.slice(1) || 'general';
+let dirty = false;
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { ...opts, headers: { 'X-Token': T, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || res.status);
+  return body;
+}
+const say = (text, err) => { const m = $('#msg'); m.textContent = text; m.className = 'msg' + (err ? ' err' : ''); };
+const touch = () => { dirty = true; say(t('unsaved')); };
+const dot = ok => `<span class="dot ${ok === true ? 'ok' : ok === false ? 'bad' : ''}"></span>`;
+
+// ---- the ghost: menu-bar icon previews and the mascots --------------------------------------------
+const GHOST = ['...xxxxx...', '..xxxxxxx..', '.xxxxxxxxx.', '.xx.xxx.xx.', '.xx.xxx.xx.', '.xxxxxxxxx.', '.xxxxxxxxx.', '.xxxxxxxxx.', '.xxxxxxxxx.', '.xxxx.xxxx.', '.xxx...xxx.'];
+const BANDS = ['#d97757', '#d97757', '#d97757', '#ffd000', '#ffd000', '#ffd000', '#3ddc84', '#3ddc84', '#4da3ff', '#4da3ff', '#4da3ff'];
+const TRAY = { mono: null, orange: '#d97757', rainbow: 'bands', green: '#3ddc84', blue: '#4da3ff' };
+const TRAY_NAME = { mono: 'trayMono', orange: 'trayOrange', rainbow: 'trayRainbow', green: 'trayGreen', blue: 'trayBlue' };
+function ghostSvg(style, cls = 'pic') {
+  let r = '';
+  GHOST.forEach((row, y) => [...row].forEach((c, x) => {
+    if (c !== 'x') return;
+    const fill = style === 'mono' ? 'currentColor' : TRAY[style] === 'bands' ? BANDS[y] : TRAY[style];
+    r += `<rect x="${x}" y="${y}" width="1" height="1" fill="${fill}"/>`;
+  }));
+  return `<svg class="${cls}" viewBox="0 0 11 11" xmlns="http://www.w3.org/2000/svg">${r}</svg>`;
+}
+const CLAUDE_MASCOT = ['.##########.', '.##.####.##.', '.##.####.##.', '############', '############', '.##########.', '.##########.', '..#.#..#.#..', '..#.#..#.#..'];
+function claudeMascotSvg(color) {
+  let r = '';
+  CLAUDE_MASCOT.forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') r += `<rect x="${x}" y="${y}" width="1" height="1"/>`; }));
+  return `<svg viewBox="0 0 12 9" width="60" height="45" fill="${color}">${r}</svg>`;
+}
+/** A 9x9 LED glyph from glyphs.json as an inline SVG in the given colour. */
+function glyphSvg(name, color, size = 22) {
+  const g = D.glyphs[name] || D.glyphs.server;
+  let r = '';
+  g.forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') r += `<rect x="${x}" y="${y}" width="0.92" height="0.92" rx="0.15"/>`; }));
+  return `<svg viewBox="0 0 9 9" width="${size}" height="${size}" fill="${color}">${r}</svg>`;
+}
+
+// ---- tabs ------------------------------------------------------------------------------------
+const SCREENS = { music: 'screen_music', ai: 'screen_ai', work: 'screen_work', calendar: 'screen_calendar', servers: 'screen_servers' };
+const TAB_COLOR = { music: '#8e8e93', ai: '#d97757', work: '#4da3ff', calendar: '#ff3b30', servers: '#3ddc84' };
+function tabs() {
+  const list = [{ id: 'general', title: t('general') }, { sep: 1 }];
+  D.groups.filter(g => g.id !== 'app').forEach(g => list.push({ id: g.id, title: g.label }));
+  list.push({ sep: 1 }, { id: 'app', title: t('app') });
+  return list;
+}
+function drawNav() {
+  $('#nav').innerHTML = '<h1>' + ghostSvg(agent.trayIcon === 'mono' ? 'rainbow' : agent.trayIcon).replace('<svg class="pic"', '<svg width="22" height="22"') + 'Busybar status</h1>' +
+    tabs().map(x => x.sep ? '<div class="sep"></div>' : `<button data-t="${x.id}" class="${x.id === tab ? 'on' : ''}" ${TAB_COLOR[x.id] ? `style="--tab:${TAB_COLOR[x.id]}"` : ''}>${esc(x.title)}</button>`).join('');
+  $('#nav').querySelectorAll('button').forEach(b => b.onclick = () => { tab = b.dataset.t; history.replaceState(null, '', '#' + tab); draw(); });
+  // On a narrow screen the tabs scroll sideways: keep the current one in view.
+  const on = $('#nav button.on');
+  if (on && on.scrollIntoView) on.scrollIntoView({ inline: 'center', block: 'nearest' });
+}
+
+// ---- generic fields (settings of the screens) ------------------------------------------------
+function fieldRow(gid, key, f) {
+  const v = sets[gid][key];
+  const id = `${gid}.${key}`;
+  let input;
+  if (f.type === 'boolean') input = `<label class="sw"><input type="checkbox" data-f="${id}" ${v ? 'checked' : ''}><i></i></label>`;
+  else if (f.type === 'integer') input = `<input type="number" data-f="${id}" value="${esc(v)}" min="${f.min}" max="${f.max}" step="${f.step ?? 1}">`;
+  else if (f.type === 'color') input = `<input type="color" data-f="${id}" value="${esc(v)}"><button class="btn ghost small" data-reset="${id}" title="${esc(t('byDefault'))}">${icon('undo-2')}</button>`;
+  else if (f.type === 'enum') input = `<select data-f="${id}">${f.options.map(o => `<option value="${esc(o.value)}" ${o.value === v ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
+  else input = `<input class="wide" type="text" data-f="${id}" value="${esc(v)}">`;
+  return `<div class="row"><div class="t">${esc(f.label)}${f.description ? `<div class="d">${esc(f.description)}</div>` : ''}</div><div style="display:flex;gap:6px;align-items:center">${input}</div></div>`;
+}
+function screenToggle(gid) {
+  const key = SCREENS[gid];
+  if (!key) return '';
+  return `<div class="row"><div class="t">${t('showScreen')}<div class="d">${D.bar.online ? t('showScreenOn') : t('showScreenOff')}</div></div><label class="sw"><input type="checkbox" data-b="${key}" ${bar[key] ? 'checked' : ''} ${D.bar.online ? '' : 'disabled'}><i></i></label></div>`;
+}
+function groupCard(g) {
+  return `<div class="card">${screenToggle(g.id)}${Object.entries(g.fields).map(([k, f]) => fieldRow(g.id, k, f)).join('')}</div>`;
+}
+function bindFields() {
+  document.querySelectorAll('[data-f]').forEach(el => {
+    el.onchange = el.oninput = () => {
+      const [g, k] = el.dataset.f.split('.');
+      sets[g][k] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? Number(el.value) : el.value;
+      touch();
+    };
+  });
+  document.querySelectorAll('[data-reset]').forEach(el => el.onclick = () => {
+    const [g, k] = el.dataset.reset.split('.');
+    sets[g][k] = D.groups.find(x => x.id === g).fields[k].default; touch(); draw();
+  });
+  document.querySelectorAll('[data-b]').forEach(el => el.onchange = () => { bar[el.dataset.b] = el.checked; touch(); });
+}
+
+// ---- servers ---------------------------------------------------------------------------------
+const GLYPH_NAMES = () => Object.keys(D.glyphs);
+function serversExtras() {
+  const st = Object.fromEntries((S?.servers || []).map(s => [s.name, s]));
+  const okDef = sets.servers.colorOk, downDef = sets.servers.tileDown;
+  const rows = agent.servers.map((s, i) => {
+    const up = st[s.name]?.ok;
+    const color = s.color || okDef, down = s.downColor || downDef;
+    return `<div class="srv">
+      <div class="tile" style="background:${up === false ? down : color}" title="${up === false ? t('srvIsDown') : t('srvIsUp')}">${glyphSvg(s.icon, '#161618', 22)}</div>
+      <div class="fields"><input type="text" data-s="${i}.name" placeholder="${esc(t('srvName'))}" value="${esc(s.name)}"><input type="text" data-s="${i}.url" placeholder="https://…/health" value="${esc(s.url)}"></div>
+      <div style="display:flex;gap:4px"><button class="btn ghost small" data-up="${i}" ${i === 0 ? 'disabled' : ''} title="${esc(t('srvUp'))}">${icon('chevron-up')}</button><button class="btn ghost small" data-down="${i}" ${i === agent.servers.length - 1 ? 'disabled' : ''} title="${esc(t('srvDown'))}">${icon('chevron-down')}</button><button class="btn ghost small danger" data-del="${i}" title="${esc(t('srvDel'))}">${icon('trash-2')}</button></div>
+      <div class="more">
+        <label>${t('srvOk')} <input type="color" data-sc="${i}.color" value="${esc(color)}"></label>
+        <label>${t('srvNo')} <input type="color" data-sc="${i}.downColor" value="${esc(down)}"></label>
+        <button class="btn ghost small" data-scr="${i}" title="${esc(t('srvReset'))}">${icon('undo-2')}</button>
+        <div class="glyphs">${GLYPH_NAMES().map(n => `<button data-gl="${i}.${n}" class="${s.icon === n ? 'on' : ''}" title="${n}">${glyphSvg(n, 'currentColor', 18)}</button>`).join('')}</div>
+      </div></div>`;
+  }).join('');
+  return `<h3>${t('srvTitle')}</h3><div class="card servers">${rows || `<div class="note">${t('srvNone')}</div>`}<div class="row"><button class="btn ghost small" id="addServer">${icon('plus')} ${t('srvAdd')}</button><span class="d">${t('srvNote')}</span></div></div>`;
+}
+function bindServers() {
+  const sv = agent.servers;
+  document.querySelectorAll('[data-s]').forEach(el => el.oninput = () => { const [i, k] = el.dataset.s.split('.'); sv[i][k] = el.value; touch(); });
+  document.querySelectorAll('[data-sc]').forEach(el => el.oninput = () => { const [i, k] = el.dataset.sc.split('.'); sv[i][k] = el.value; touch(); });
+  document.querySelectorAll('[data-scr]').forEach(el => el.onclick = () => { const s = sv[Number(el.dataset.scr)]; s.color = ''; s.downColor = ''; touch(); draw(); });
+  document.querySelectorAll('[data-gl]').forEach(el => el.onclick = () => { const [i, n] = el.dataset.gl.split('.'); sv[i].icon = n; touch(); draw(); });
+  document.querySelectorAll('[data-del]').forEach(el => el.onclick = () => { sv.splice(Number(el.dataset.del), 1); touch(); draw(); });
+  document.querySelectorAll('[data-up]').forEach(el => el.onclick = () => { const i = Number(el.dataset.up); [sv[i - 1], sv[i]] = [sv[i], sv[i - 1]]; touch(); draw(); });
+  document.querySelectorAll('[data-down]').forEach(el => el.onclick = () => { const i = Number(el.dataset.down); [sv[i + 1], sv[i]] = [sv[i], sv[i + 1]]; touch(); draw(); });
+  const add = $('#addServer'); if (add) add.onclick = () => { sv.push({ name: '', url: 'https://', icon: 'server', color: '', downColor: '' }); touch(); draw(); };
+}
+
+// ---- work: activity like GitHub's -----------------------------------------------------------
+function heatmap() {
+  const h = S?.work?.history || {};
+  const color = sets.work.color;
+  const fmt = s => Math.floor(s / 3600) + ':' + String(Math.floor(s / 60) % 60).padStart(2, '0');
+  const key = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const days = Math.max(7, sets.work.keepDays);
+  const today = new Date();
+  const first = new Date(today); first.setDate(today.getDate() - days + 1);
+  const lead = (first.getDay() + 6) % 7; // Monday first
+  const max = Math.max(1, ...Object.values(h));
+  const level = s => (s <= 0 ? 0 : Math.min(4, 1 + Math.floor(s / max * 3.999)));
+  const alpha = [0, .3, .5, .75, 1];
+  let cells = '';
+  for (let i = 0; i < lead; i++) cells += '<i style="visibility:hidden"></i>';
+  for (let i = 0; i < days; i++) {
+    const d = new Date(first); d.setDate(first.getDate() + i);
+    const sec = h[key(d)] || 0, l = level(sec);
+    cells += `<i title="${key(d)}: ${sec ? fmt(sec) : t('noData')}" style="${l ? `background:${color};opacity:${alpha[l]}` : ''}"></i>`;
+  }
+  const legend = [0, 1, 2, 3, 4].map(l => `<i style="${l ? `background:${color};opacity:${alpha[l]}` : 'background:var(--line)'}"></i>`).join('');
+  return `<h3>${t('activity')}</h3><div class="card"><div class="heat">${cells}</div><div class="legend">${t('less')} ${legend} ${t('more')} · ${t('heatNote', { n: days })}</div></div>`;
+}
+
+// ---- extras per tab --------------------------------------------------------------------------
+function extras(id) {
+  if (id === 'servers') return serversExtras();
+  if (id === 'calendar') {
+    const c = S?.calendar;
+    const state = !c ? t('calNoData') : c.ok ? t('calOk', { n: c.events.length }) : t('calNo');
+    return `<h3>${t('calSources')}</h3><div class="card"><div class="row"><div class="t">${dot(c?.ok)}${esc(state)}</div></div><div class="row" style="display:block"><div class="t">${t('calExclude')} <span class="d">${t('calExcludeD')}</span></div><textarea id="exclude" style="width:100%;min-height:70px;margin-top:8px">${esc((agent.calendarExclude || []).join('\n'))}</textarea></div></div>`;
+  }
+  if (id === 'work') return heatmap();
+  if (id === 'ai') {
+    const c = S?.claude;
+    const text = c ? (c.active ? t('aiActive', { t: c.blockTokens, c: c.blockCost }) : t('aiIdle')) : t('noData');
+    const agentRows = (S?.agents || []).map(a => `<div class="row"><div class="t">${dot(a.busy)}${esc(a.name)}${a.up ? `<div class="d">${t('aiUp', { n: a.up })}</div>` : ''}</div><span class="d">${a.busy ? t('aiWorking') : t('aiIdle2')}</span></div>`).join('');
+    return `<h3>${t('aiAgents')}</h3><div class="card">${agentRows || `<div class="note">${t('aiAgentNone')}</div>`}</div>
+    <h3>${t('aiMascots')}</h3><div class="card"><div class="masc"><div>${claudeMascotSvg(sets.ai.color)}${t('mClaude')}</div><div>${ghostSvg('rainbow').replace('<svg class="pic"', '<svg width="55" height="55"')}${t('mGhost')}</div></div></div>
+    <h3>${t('aiNow')}</h3><div class="card"><div class="row"><div class="t">${esc(text)}<div class="d">${t('aiPrices')}</div></div></div></div>
+    <h3>${t('aiOthers')}</h3><div class="card"><div class="row"><div class="t">${t('aiOthersT')}<div class="d">${t('aiOthersD', { c: '<code>node mac-agent/bin/notify.mjs ai_done "Codex: project"</code>', w: '<code>ai_wait</code>' })}</div></div></div></div>`;
+  }
+  return '';
+}
+function bindExtras() {
+  const ex = $('#exclude'); if (ex) ex.oninput = () => { agent.calendarExclude = ex.value.split('\n').map(s => s.trim()).filter(Boolean); touch(); };
+  if (tab === 'servers') bindServers();
+}
+
+// ---- general tab -----------------------------------------------------------------------------
+function loginNote() {
+  const st = S?.tray?.loginItem;
+  if (!S?.tray?.running) return t('loginNoTray');
+  if (st === 'enabled') return t('loginOn');
+  if (st === 'requiresApproval') return t('loginAsk');
+  return t('loginOff');
+}
+const APP_ICON = { tray: 'iconTray', dock: 'iconDock', both: 'iconBoth', none: 'iconNone' };
+const reserved = n => (D.reserved || []).includes(String(n).toLowerCase());
+function general() {
+  const online = D.bar.online;
+  const link = D.link;
+  const linked = bar.agent_host === link.host && bar.agent_port === link.port && bar.agent_token === link.token;
+  const langField = D.schema.fields.lang;
+  const url = D.aliasUrl || `http://127.0.0.1:${link.port}/ui`;
+  const name = agent.uiHostname;
+  return `<h2>${t('general')}</h2><p class="sub">${t('generalSub')}</p>
+  ${online ? '' : `<div class="warn">${t('barWarn', { e: D.bar.error ? ': ' + esc(D.bar.error) : '' })}</div>`}
+  <h3>${t('bar')}</h3><div class="card">
+    <div class="row"><div class="t">${dot(online)}${t('barAddr')}<div class="d">${t('barAddrD')}</div></div><input class="wide" type="text" id="barHost" value="${esc(agent.bar.host)}" placeholder="192.168.1.68"></div>
+    <div class="row"><div class="t">${t('barPass')}<div class="d">${D.config.bar.hasPassword ? t('passSaved') : t('passNone')}</div></div><input class="wide" type="password" id="barPass" value="" placeholder="${D.config.bar.hasPassword ? '••••••••' : esc(t('password'))}"></div>
+    <div class="row"><div class="t">${dot(linked)}${t('bound', { a: esc(link.host) + ':' + link.port })}<div class="d">${linked ? t('boundOk') : t('boundNo')}</div></div><button class="btn ghost small" id="link" ${online ? '' : 'disabled'}>${icon('link')} ${t('bind')}</button></div>
+    <div class="row"><div class="t">${t('language')}<div class="d">${t('languageD')}</div></div><select id="lang">${langField.options.map(o => `<option value="${o.value}" ${agent.lang === o.value ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select></div>
+  </div>
+  <h3>${t('mac')}</h3><div class="card">
+    <div class="row"><div class="t">${dot(S?.tray?.running)}${t('login')}<div class="d">${loginNote()}</div></div><label class="sw"><input type="checkbox" id="login" ${agent.launchAtLogin ? 'checked' : ''}><i></i></label></div>
+    <div class="row"><div class="t">${t('showIcon')}<div class="d">${t('showIconD')}</div></div><select id="appIcon">${Object.entries(APP_ICON).map(([k, v]) => `<option value="${k}" ${agent.appIcon === k ? 'selected' : ''}>${t(v)}</option>`).join('')}</select></div>
+    ${agent.appIcon === 'none' ? `<div class="warn" style="margin:0 0 12px">${t('noneWarn', { u: `<code>${esc(url)}</code>` })}</div>` : ''}
+    <div class="row"><div class="t">${t('nameLabel')}<div class="d">${name ? t('nameOn', { u: `<code>${esc(D.aliasUrl || `http://${name}.local:${link.port}/ui`)}</code>` }) : t('nameOff')}</div><div class="e" id="nameErr"></div></div><input class="wide" type="text" id="host" maxlength="30" value="${esc(name)}" placeholder="busy-status"></div>
+    ${D.aliasUrl ? `<div class="row"><div class="t">${t('linkTitle')}<div class="d">${t('linkD')}</div></div><div style="display:flex;gap:6px"><input class="wide" type="text" id="tokenLink" readonly value="${esc(D.aliasUrl + '?t=' + link.token)}"><button class="btn ghost small" id="copyLink">${icon('copy-check')} ${t('copy')}</button></div></div>` : ''}
+  </div>
+  <h3>${t('trayIcon')}</h3><div class="card"><div class="opts">${Object.keys(TRAY).map(k => `<label class="${agent.trayIcon === k ? 'on' : ''}"><input type="radio" name="icon" value="${k}" ${agent.trayIcon === k ? 'checked' : ''}>${ghostSvg(k)}${t(TRAY_NAME[k])}</label>`).join('')}</div>
+  <div class="note">${t('trayNote')}</div></div>`;
+}
+function bindGeneral() {
+  const h = $('#barHost'); if (!h) return;
+  h.oninput = () => { agent.bar.host = h.value; touch(); };
+  $('#barPass').oninput = e => { agent.bar.password = e.target.value; touch(); };
+  document.querySelectorAll('input[name=icon]').forEach(r => r.onchange = () => { agent.trayIcon = r.value; touch(); draw(); });
+  $('#login').onchange = e => { agent.launchAtLogin = e.target.checked; touch(); };
+  $('#appIcon').onchange = e => { agent.appIcon = e.target.value; touch(); draw(); };
+  const host = $('#host');
+  host.oninput = e => {
+    const v = e.target.value.replace(/[^a-z0-9-]/gi, '').toLowerCase();
+    const bad = reserved(v);
+    host.classList.toggle('bad', bad);
+    $('#nameErr').textContent = bad ? t('nameReserved', { n: v }) : '';
+    // A reserved name is never kept: it is the bar's own.
+    if (!bad) { agent.uiHostname = v; touch(); }
+  };
+  host.onchange = () => { if (!reserved(host.value)) draw(); };
+  // The language switches the whole app, so it is saved at once.
+  $('#lang').onchange = async e => { agent.lang = e.target.value; bar.lang = e.target.value; lang = agent.lang; await saveAll(); };
+  const copy = $('#copyLink');
+  if (copy) copy.onclick = async () => { const f = $('#tokenLink'); f.select(); try { await navigator.clipboard.writeText(f.value); } catch { document.execCommand('copy'); } say(t('copied')); };
+  $('#link').onclick = () => { bar.agent_host = D.link.host; bar.agent_port = D.link.port; bar.agent_token = D.link.token; touch(); draw(); };
+}
+
+// ---- page ------------------------------------------------------------------------------------
+function applyTexts() {
+  document.documentElement.lang = lang;
+  document.title = t('title');
+  $('#reload').textContent = t('discard');
+  $('#save').textContent = t('save');
+}
+function draw() {
+  applyTexts();
+  drawNav();
+  const g = D.groups.find(x => x.id === tab);
+  if (tab === 'general' || !g) $('#main').innerHTML = general();
+  else $('#main').innerHTML = `<h2>${esc(g.label)}</h2><p class="sub">${t('screenSub')}</p>${groupCard(g)}${extras(tab)}`;
+  bindFields(); bindExtras(); bindGeneral();
+}
+
+async function load() {
+  [D, S] = await Promise.all([api('/api/config'), api('/api/status')]);
+  // The bar's own settings are flat; the defaults fill in what the bar has not stored yet.
+  const base = {};
+  for (const [k, f] of Object.entries(D.schema.fields)) base[k] = f.default;
+  bar = Object.assign(base, D.bar.doc?.values || {});
+  sets = JSON.parse(JSON.stringify(D.settings));
+  agent = JSON.parse(JSON.stringify({ servers: D.config.servers, calendarExclude: D.config.calendarExclude, trayIcon: D.config.trayIcon, launchAtLogin: D.config.launchAtLogin, appIcon: D.config.appIcon, uiHostname: D.config.uiHostname, lang: D.config.lang, bar: { host: D.config.bar.host, password: '' } }));
+  lang = agent.lang;
+  dirty = false; say(D.bar.online ? t('connected') : t('barDown'), !D.bar.online);
+  draw();
+}
+
+async function saveAll() {
+  say(t('saving'));
+  try {
+    await api('/api/config', { method: 'PUT', body: JSON.stringify({ agent, settings: sets, bar: D.bar.online ? { version: D.schema.version, values: bar } : undefined }) });
+    await load(); say(t('saved'));
+  } catch (e) {
+    // The agent may have taken part of it (the language, say): show what it really holds.
+    await load().catch(() => {});
+    say(t('failed') + e.message, true);
+  }
+}
+$('#save').onclick = saveAll;
+$('#reload').onclick = () => load().catch(e => say(e.message, true));
+window.onbeforeunload = () => (dirty ? t('unsaved') : undefined);
+load().catch(e => {
+  if (String(e.message) === 'unauthorized') {
+    // A new address has no token yet: ask for it once.
+    applyTexts();
+    $('#nav').innerHTML = '';
+    $('.bar').style.display = 'none';
+    $('#main').innerHTML = `<h2>${t('needToken')}</h2><p class="sub">${esc(t('needTokenD'))}</p><div class="card"><div class="row"><input class="wide" type="password" id="tok" placeholder="${esc(t('tokenPlaceholder'))}"><button class="btn" id="tokGo">${t('tokenGo')}</button></div></div>`;
+    $('#tokGo').onclick = () => { localStorage.setItem('bbs-token', $('#tok').value.trim()); location.reload(); };
+    return;
+  }
+  $('#main').innerHTML = `<div class="warn">${esc(t('loadFailed', { e: e.message }))}</div>`;
+});
+setInterval(() => { if (!dirty) api('/api/status').then(s => { S = s; }).catch(() => {}); }, 5000);
+</script>
+</body>
+</html>

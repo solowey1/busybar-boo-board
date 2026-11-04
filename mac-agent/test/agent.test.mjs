@@ -6,7 +6,10 @@ import { applyMessage, toMusic } from "../src/sources/music.mjs";
 import { costOf, parseUsage, summarize } from "../src/sources/claude.mjs";
 import { addSample, recent } from "../src/sources/work.mjs";
 import { toCalendar } from "../src/sources/calendar.mjs";
-import { applyChange, loadConfig, publicConfig } from "../src/config.mjs";
+import { applyChange, loadConfig, publicConfig, systemLang } from "../src/config.mjs";
+import { encodeAnim } from "../tools/anim.mjs";
+import { startServers } from "../src/sources/servers.mjs";
+import { createServer } from "node:http";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -288,4 +291,108 @@ test("calendar: red by default, and a saved old default (blue) follows", () => {
   assert.equal(loadConfig(file).settings.calendar.color, "#FF3B30");
   writeFileSync(file, JSON.stringify({ token: "t", settings: { calendar: { minutes: 5, color: "#00FF00" } } }));
   assert.equal(loadConfig(file).settings.calendar.color, "#00FF00");
+});
+
+test("calendar: a grid of five weeks from Monday with the meetings per day", () => {
+  // Wednesday 4 November 2026, noon.
+  const now = new Date(2026, 10, 4, 12, 0, 0).getTime();
+  const at = (d, h) => Math.floor(new Date(2026, 10, d, h, 0, 0).getTime() / 1000);
+  const c = toCalendar(
+    [
+      { title: "early", start: at(4, 9), end: at(4, 10), calendar: "W" }, // today, already over: counts in the grid, not in the list
+      { title: "a", start: at(4, 15), end: at(4, 16), calendar: "W" },
+      { title: "b", start: at(4, 17), end: at(4, 18), calendar: "W" },
+      { title: "c", start: at(9, 10), end: at(9, 11), calendar: "W" },
+    ],
+    { now },
+  );
+  assert.deepEqual(c.events.map((e) => e.title), ["a", "b", "c"]);
+  assert.equal(c.grid.counts.length, 35);
+  assert.deepEqual({ wd: c.grid.wd, today: c.grid.today, d: c.grid.d, m: c.grid.m }, { wd: 2, today: 2, d: 4, m: 10 });
+  // Monday 2 November is cell 0, so Wednesday is 2 and the next Monday (9th) is 7.
+  assert.equal(c.grid.counts[2], 3);
+  assert.equal(c.grid.counts[7], 1);
+  assert.equal(c.grid.counts[3], 0);
+});
+
+test("settings: the screen order is a permutation, anything else falls back; the calendar starts as a grid", () => {
+  const d = defaultSettings();
+  assert.equal(d.app.order, "music,claude,servers,calendar,work");
+  assert.equal(d.calendar.view, "weeks3");
+  assert.equal(d.work.view, "grid");
+  assert.equal(sanitizeSettings({ app: { order: "work,calendar,servers,claude,music" } }).app.order, "work,calendar,servers,claude,music");
+  assert.equal(sanitizeSettings({ app: { order: "work,work,music" } }).app.order, d.app.order);
+  assert.equal(forBar(d).appOrder, d.app.order);
+});
+
+test("api: the bar is known by its address and may only read the state and press the big button", async () => {
+  const hub = new Hub();
+  hub.set("music", { active: true });
+  const app = (host) => ({ getConfig: () => ({ token: "secret", port: 0, trayIcon: "mono", bar: { host } }), calendarFeed() {}, activity() {}, control: async () => ({ ok: true }) });
+  for (const [host, expected] of [["127.0.0.1", 200], ["10.9.9.9", 401]]) {
+    const server = createApi({ hub, app: app(host) });
+    await new Promise((r) => server.listen(0, "127.0.0.1", r));
+    try {
+      assert.equal((await fetch(`http://127.0.0.1:${server.address().port}/state?s=music`)).status, expected);
+      // the settings are never open to the bar's address alone
+      assert.equal((await fetch(`http://127.0.0.1:${server.address().port}/api/config`)).status, 401);
+    } finally {
+      server.close();
+    }
+  }
+});
+
+test("anim: a file the firmware accepts (header, one section, raw BGRA frames, sizes add up)", () => {
+  const frames = [0, 1, 2].map((n) => Buffer.alloc(4 * 2 * 4, n));
+  const f = encodeAnim({ width: 4, height: 2, fps: 10, frames });
+  assert.equal(f.subarray(0, 8).toString(), "bicycle1");
+  assert.deepEqual([f[8], f[9], f[10], f[11]], [0, 4, 2, 2]); // flags, width, height, Bgra8888
+  assert.equal(f.readUInt16LE(14), 32); // longest pixel data
+  assert.equal(f[16], 10);
+  const sections = f.readUInt32LE(18);
+  const framesLen = f.readUInt32LE(22);
+  assert.equal(f.length, 34 + sections + framesLen);
+  assert.equal(f.readUInt32LE(26), 1);
+  assert.equal(f.readUInt32LE(30), 3);
+  // section 0: frames 0..2, starting right after the sections chunk, named "default", the chunk ends with a NUL
+  assert.deepEqual([f.readUInt32LE(34), f.readUInt32LE(38), f.readUInt32LE(42)], [0, 2, 34 + sections]);
+  assert.equal(f.subarray(46, 53).toString(), "default");
+  assert.equal(f[34 + sections - 1], 0);
+  // each frame: mask fully white + raw pixels, no mask data, 32 bytes of pixels
+  assert.deepEqual([f[34 + sections], f.readUInt16LE(35 + sections), f.readUInt16LE(37 + sections)], [0x10, 0, 32]);
+  assert.equal(framesLen, 3 * (5 + 32));
+});
+
+test("language: a first start takes the system's, anything else is English; a chosen one is kept", () => {
+  assert.equal(systemLang({ LANG: "ru_RU.UTF-8" }), "ru");
+  assert.equal(systemLang({ LC_ALL: "de_DE.UTF-8", LANG: "ru_RU.UTF-8" }), "en");
+  assert.equal(systemLang({ LANG: "en_US.UTF-8" }), "en");
+  const dir = mkdtempSync(join(tmpdir(), "bbs-"));
+  const file = join(dir, "config.json");
+  const first = loadConfig(file);
+  assert.equal(first.lang, systemLang());
+  assert.equal(first.langPending, true);
+  // the file now exists: a later start does not take the system's language again
+  writeFileSync(file, JSON.stringify({ token: "t", lang: "en" }));
+  assert.equal(loadConfig(file).lang, "en");
+  assert.equal(loadConfig(file).langPending, undefined);
+  // choosing a language on the settings page ends the waiting
+  assert.equal(applyChange({ ...first, langPending: true }, { lang: "en" }).langPending, false);
+});
+
+test("servers: the bar gets the address and how many minutes each has been up or down", async () => {
+  const web = createServer((_req, res) => res.end("ok"));
+  await new Promise((r) => web.listen(0, "127.0.0.1", r));
+  const hub = new Hub();
+  const up = `http://127.0.0.1:${web.address().port}/health`;
+  const running = startServers({ hub, log() {}, servers: [{ name: "Up", url: up, icon: "server" }, { name: "Down", url: "http://127.0.0.1:1/", icon: "globe" }], intervalMs: 3_600_000 });
+  try {
+    for (let i = 0; i < 100 && !hub.snapshot(["servers"]).servers?.items?.length; i++) await new Promise((r) => setTimeout(r, 30));
+    const items = hub.snapshot(["servers"]).servers.items;
+    assert.deepEqual(items.map((i) => [i.name, i.ok, i.host]), [["Up", true, `127.0.0.1:${web.address().port}`], ["Down", false, "127.0.0.1:1"]]);
+    assert.ok(items.every((i) => Number.isInteger(i.age) && i.age >= 0));
+  } finally {
+    running.stop();
+    web.close();
+  }
 });

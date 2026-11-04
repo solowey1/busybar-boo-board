@@ -37,11 +37,18 @@ const DEFAULTS = {
   // A friendly name for the settings page, published on the local network: "status" gives http://status.local:PORT/ui
   uiHostname: "",
   // The language of the whole app: the settings page, the menu-bar app, the bar, the notifications.
-  lang: "ru",
+  lang: "en",
 };
 
-/** Loads the config, creating it (with a fresh token) on first run. */
+/** The system's language when the app speaks it (Russian), otherwise English. */
+export function systemLang(env = process.env) {
+  const raw = env.LC_ALL || env.LC_MESSAGES || env.LANG || Intl.DateTimeFormat().resolvedOptions().locale || "";
+  return /^ru/i.test(String(raw)) ? "ru" : "en";
+}
+
+/** Loads the config, creating it (with a fresh token and the system's language) on first run. */
 export function loadConfig(file = CONFIG_FILE) {
+  const isNew = !existsSync(file);
   let stored = {};
   if (existsSync(file)) stored = JSON.parse(readFileSync(file, "utf8"));
   const config = { ...DEFAULTS, ...stored, bar: { ...DEFAULTS.bar, ...(stored.bar ?? {}) } };
@@ -52,7 +59,12 @@ export function loadConfig(file = CONFIG_FILE) {
   if (String(config.settings?.calendar?.color).toUpperCase() === "#4DA3FF") config.settings = { ...config.settings, calendar: { ...config.settings.calendar, color: "#FF3B30" } };
   config.settings = sanitizeSettings(config.settings);
   config.servers = cleanServers(config.servers);
-  if (!LANGS.includes(config.lang)) config.lang = "ru";
+  if (!LANGS.includes(config.lang)) config.lang = "en";
+  // A first start takes the system's language; the bar still has its own default until the agent has written this one to it.
+  if (isNew) {
+    config.lang = systemLang();
+    config.langPending = true;
+  }
   // An older version allowed "busybar", which is the bar's own name.
   if (RESERVED_HOSTNAMES.includes(String(config.uiHostname).toLowerCase())) config.uiHostname = "";
   if (!config.token) {
@@ -99,7 +111,11 @@ export function applyChange(config, change) {
   if (Array.isArray(change.servers)) next.servers = cleanServers(change.servers);
   if (change.settings && typeof change.settings === "object") next.settings = sanitizeSettings(change.settings);
   if (APP_ICONS.includes(change.appIcon)) next.appIcon = change.appIcon;
-  if (LANGS.includes(change.lang)) next.lang = change.lang;
+  if (LANGS.includes(change.lang)) {
+    next.lang = change.lang;
+    // Chosen on purpose: the bar is not given the system's language any more.
+    next.langPending = false;
+  }
   if (typeof change.uiHostname === "string") {
     const name = change.uiHostname.trim().toLowerCase();
     // Letters, digits and dashes; not the name the bar itself answers to.

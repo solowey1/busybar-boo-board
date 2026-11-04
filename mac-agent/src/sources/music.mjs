@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
+import { platform } from "node:os";
 import { artworkToXpm } from "../artwork.mjs";
 
 /** Applies one `media-control stream` message to the accumulated state. */
@@ -39,6 +40,11 @@ export function toMusic(raw, now = Date.now()) {
  * The hub is only touched when the track, play state or a seek changes - the bar moves the playhead itself.
  */
 export function startMusic({ hub, log, bin = "media-control" }) {
+  // The now-playing source is macOS-only (media-control); elsewhere the screen simply shows "no music".
+  if (platform() !== "darwin") {
+    hub.set("music", { active: false });
+    return () => {};
+  }
   let state = {};
   let published = null;
   // The cover is converted once per track, off the hot path; `art` is added to the music part when it is ready.

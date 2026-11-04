@@ -15,3 +15,6 @@ dist
 .idea
 .DS_Store
 *.sw?
+
+# packages built by mac-agent/tools/package.mjs
+mac-agent/release/

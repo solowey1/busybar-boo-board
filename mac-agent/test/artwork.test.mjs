@@ -62,7 +62,7 @@ test("toXpm2 follows the bar's limits: <=32 colours, cpp 1, transparent corners"
   assert.ok(!toXpm2(bmp, { rounded: false }).includes(" c none"));
 });
 
-test("artworkToXpm: a real JPEG goes through sips into a 16x16 XPM", async () => {
+test("artworkToXpm: a real JPEG goes through sips into a 16x16 XPM", { skip: process.platform !== "darwin" && "sips is macOS-only" }, async () => {
   const dir = mkdtempSync(join(tmpdir(), "bbs-test-"));
   const bmpPath = join(dir, "src.bmp");
   writeFileSync(bmpPath, makeBmp(40, 30, (x) => (x < 20 ? { r: 220, g: 30, b: 30 } : { r: 20, g: 40, b: 200 })));

@@ -1,25 +1,27 @@
 import { device } from "@shared/device";
 import manifest from "./appmeta/manifest.json";
 import { fetchState } from "./agent";
-import { loadConfig } from "./config";
+import { nextAgent, pickAgent } from "./agents";
+import { loadConfig, mergeSettings } from "./config";
 import { calendar } from "./screens/calendar";
 import { claude } from "./screens/claude";
+import { mascotScreen } from "./screens/mascot";
 import { music } from "./screens/music";
 import { servers } from "./screens/servers";
 import { work } from "./screens/work";
 import type { AgentAlert, AgentState, Config, Ctx, El, Screen, ScreenId } from "./types";
-import { AMBER, BLUE, BRAND, DIM, RED, WHITE, label } from "./util";
+import { DIM, RED, WHITE, label, rgba, status, tr } from "./util";
 
 /** The name the app draws under; the device clears elements by this id. */
 const APP = manifest.id;
 
-const ALL: Screen[] = [music, claude, work, calendar, servers];
-const POLL_MS = 3000;
+const ALL: Screen[] = [music, claude, mascotScreen, work, calendar, servers];
+// A request to the Mac is held there for up to this long while nothing changes, so news arrives at once.
+const POLL_WAIT_MS = 2000;
 const POLL_OFFLINE_MS = 10000;
-// Twice a second: the mascot moves on every half second; unchanged elements are not sent again.
-const TICK_MS = 500;
+// Three times a second: the mascots and the flashes move on; unchanged elements are not sent again.
+const TICK_MS = 333;
 const ALERT_MS = 9000;
-const FLASH_MS = 1200;
 /** After the wheel or OK is used, the automatic rotation waits this long. */
 const ROTATE_HOLD_MS = 15000;
 /** Other apps and BUSY sessions can wipe our elements; resend everything now and then. */
@@ -31,25 +33,63 @@ interface Banner {
   until: number;
   els: El[];
   led?: string;
+  /** false: only the sound and the LED, the screen stays as it is */
+  overlay?: boolean;
+}
+
+/** True when two elements say the same thing: they hold only strings and numbers, so a shallow look is enough. */
+function sameEl(a: El | undefined, b: El): boolean {
+  if (!a) return false;
+  if (a === b) return true;
+  const ka = Object.keys(a) as (keyof El)[];
+  if (ka.length !== Object.keys(b).length) return false;
+  for (let i = 0; i < ka.length; i++) if (a[ka[i]] !== b[ka[i]]) return false;
+  return true;
 }
 
 const report = (err: unknown) => console.error(`${APP}: ${err instanceof Error ? err.message : String(err)}`);
 
+/** Position (1-based) of an agent in the list. */
+const agentIndex = (list: { id: string }[], id: string): number => {
+  let n = 1;
+  list.forEach((a, i) => {
+    if (a.id === id) n = i + 1;
+  });
+  return n;
+};
+
 const byId = (id: ScreenId): Screen => ALL.filter((s) => s.id === id)[0];
 
-function alertColor(kind: string): string {
-  if (kind.indexOf("down") >= 0) return RED;
-  if (kind.indexOf("claude") === 0) return BRAND;
-  if (kind.indexOf("calendar") === 0) return AMBER;
-  return BLUE;
+/** A screen that fails must not blank the bar: the failure is logged once and the frame stays empty. */
+let lastFailure = "";
+function draw(s: Screen, ctx: Ctx): El[] {
+  try {
+    return s.elements(ctx);
+  } catch (err) {
+    const text = s.id + ": " + (err instanceof Error ? err.message : String(err));
+    if (text !== lastFailure) report(text);
+    lastFailure = text;
+    return [];
+  }
 }
 
-function alertHeader(kind: string): string {
-  if (kind.indexOf("claude") === 0) return "Claude";
-  if (kind.indexOf("server") === 0) return "Сервер";
-  if (kind.indexOf("calendar") === 0) return "Встреча";
-  if (kind.indexOf("work") === 0) return "Работа";
-  return "Уведомление";
+/** Alerts about an AI finishing: "claude_done", "ai_wait", ... */
+const isAi = (kind: string): boolean => kind.indexOf("claude") === 0 || kind.indexOf("ai") === 0;
+
+function alertColor(cfg: Config, kind: string): string {
+  if (kind.indexOf("down") >= 0) return RED;
+  if (isAi(kind)) return rgba(cfg.s.aiColor);
+  if (kind.indexOf("calendar") === 0) return rgba(cfg.s.calendarColor);
+  if (kind.indexOf("up") >= 0) return rgba(cfg.s.serversColorOk);
+  return rgba(cfg.s.workColor);
+}
+
+function alertHeader(cfg: Config, kind: string): string {
+  if (isAi(kind)) return tr(cfg, "ai");
+  if (kind.indexOf("server") === 0) return tr(cfg, "server");
+  if (kind.indexOf("calendar") === 0) return tr(cfg, "meeting");
+  if (kind.indexOf("work") === 0) return tr(cfg, "work");
+  return tr(cfg, "notice");
 }
 
 function main(): void {
@@ -65,37 +105,50 @@ function main(): void {
   let banner: Banner | null = null;
   let flashUntil = 0;
   let danceUntil = 0;
+  let agentPick = "";
+  let claudeDone: { until: number; head: string; text: string; other: boolean } | null = null;
+  let settingsRev = -1;
+  let needClear = false;
   let lastInputAt = 0;
   let rotateAt = 0;
   let stopped = false;
   let drawing = false;
   let polling = false;
   let refreshAt = Date.now() + REFRESH_MS;
-  const sent: Record<string, string> = {};
+  /** What is on the display now, by element id; the objects themselves, so nothing is copied. */
+  const sent: Record<string, El> = {};
   const done: Record<string, boolean> = {};
+  /** The screen drawn last; when it changes the old one may let go of its buffers. */
+  let shown: ScreenId | null = null;
   let pollTimer: number | undefined;
   let tickTimer: number | undefined;
 
-  const wantedParts = (c: Config): ScreenId[] => {
-    const ids: ScreenId[] = [];
+  /** The mascot screen has no switch of its own on the bar: it is turned on on the settings page, with the AI screen. */
+  const isOn = (s: Screen, c: Config): boolean => (s.id === "mascot" ? c.s.aiMascotScreen : c.screens[s.id]);
+
+  const wantedParts = (c: Config): string[] => {
+    const ids: string[] = [];
     ALL.forEach((s) => {
-      if (c.screens[s.id]) ids.push(s.id);
+      // The mascot screen draws from what the AI screen draws from.
+      if (isOn(s, c) && s.id !== "mascot") ids.push(s.id);
     });
-    if ((c.calendarMinutes > 0 || c.hideEmpty) && ids.indexOf("calendar") < 0) ids.push("calendar");
-    if ((c.workHours > 0 || c.breakMinutes > 0) && ids.indexOf("work") < 0) ids.push("work");
-    return ids;
+    if ((c.screens.claude || c.s.aiMascotScreen) && ids.indexOf("agents") < 0) ids.push("agents");
+    if ((c.s.calendarMinutes > 0 || c.s.appHideEmpty) && ids.indexOf("calendar") < 0) ids.push("calendar");
+    if ((c.s.workHours > 0 || c.s.workBreakMinutes > 0) && ids.indexOf("work") < 0) ids.push("work");
+    // "meta" says when the settings page saved something, so the app reads its settings again.
+    return ids.concat(["meta"]);
   };
 
-  const makeCtx = (now: number): Ctx => ({ cfg: cfg as Config, data, at: now, recvAt, online, view: views[current] || 0, danceUntil });
+  const makeCtx = (now: number): Ctx => ({ cfg: cfg as Config, data, at: now, recvAt, online, view: views[current] || 0, danceUntil, done: claudeDone, agentPick });
 
   /** The screens the wheel goes through: the enabled ones, minus the empty ones when that is asked for. */
   const visible = (ctx: Ctx): Screen[] => {
-    const list = enabled.filter((s) => !(ctx.cfg.hideEmpty && s.isEmpty && s.isEmpty({ ...ctx, view: 0 })));
+    const list = enabled.filter((s) => !(ctx.cfg.s.appHideEmpty && s.isEmpty && s.isEmpty({ ...ctx, view: 0 })));
     return list.length > 0 ? list : enabled;
   };
 
   const play = (path: string): void => {
-    if (!cfg || !cfg.alertSound) return;
+    if (!cfg || !cfg.s.appAlertSound) return;
     fetch("http://localhost/api/audio/play", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -113,9 +166,31 @@ function main(): void {
   };
 
   const showAlert = (a: AgentAlert): void => {
-    // Claude is done: the mascot dances once the pop-up is gone.
-    if (a.kind.indexOf("claude") === 0) danceUntil = Date.now() + ALERT_MS + 8000;
-    showText(alertHeader(a.kind), a.text, alertColor(a.kind));
+    const now = Date.now();
+    if (!cfg) return;
+    if (isAi(a.kind)) {
+      const wait = a.kind.indexOf("wait") >= 0;
+      const text = a.text.replace(/^(Готово|Done):\s*/, "");
+      const onAi = current === "claude";
+      const led = rgba(cfg.s.aiColor);
+      const withMascot = cfg.s.aiMascot !== "none";
+      if (withMascot && (onAi || !cfg.s.aiOverlay)) {
+        // The news appears beside the happy mascot on the AI screen, and the figures wait. Away from it, with
+        // overlaying off, only the sound and the LED tell, and the news waits a minute for a look at the screen.
+        claudeDone = { until: now + (onAi ? ALERT_MS : 60000), head: wait ? tr(cfg, "waiting") : tr(cfg, "done"), text: text || tr(cfg, "ai"), other: a.kind.indexOf("claude") !== 0 };
+        banner = { until: now + ALERT_MS, els: [], led, overlay: false };
+        play(SOUND_REMINDER);
+        return;
+      }
+      if (!onAi && !cfg.s.aiOverlay) {
+        banner = { until: now + ALERT_MS, els: [], led, overlay: false };
+        play(SOUND_REMINDER);
+        return;
+      }
+      // A banner tells it, and the mascot dances once the banner is gone.
+      danceUntil = now + ALERT_MS + 8000;
+    }
+    showText(alertHeader(cfg, a.kind), a.text, alertColor(cfg, a.kind));
   };
 
   /** Pop-ups that the bar works out itself from the data it already has. */
@@ -123,34 +198,34 @@ function main(): void {
     if (!cfg) return;
     const nowS = Math.floor(ctx.at / 1000);
     const e = data.calendar && data.calendar.ok ? data.calendar.events[0] : undefined;
-    if (e && cfg.calendarMinutes > 0) {
+    if (e && cfg.s.calendarMinutes > 0) {
       const startAt = Math.floor(recvAt / 1000) + e.startIn;
       const remaining = startAt - nowS;
       const key = e.title + "|" + startAt;
       // 0: N minutes before, 1: one minute before, 2: at the start.
-      const stage = remaining <= 0 && remaining > -60 ? 2 : remaining <= 60 && remaining > 0 ? 1 : remaining <= cfg.calendarMinutes * 60 && remaining > 0 ? 0 : -1;
+      const stage = remaining <= 0 && remaining > -60 ? 2 : remaining <= 60 && remaining > 0 ? 1 : remaining <= cfg.s.calendarMinutes * 60 && remaining > 0 ? 0 : -1;
       if (stage >= 0 && !done[key + "#" + stage]) {
         done[key + "#" + stage] = true;
-        show(calendar.elements({ ...ctx, view: 0 }), ALERT_MS, { sound: stage === 2 ? SOUND_START : SOUND_REMINDER, led: AMBER });
+        show(calendar.elements({ ...ctx, view: 0 }), ALERT_MS, { sound: stage === 2 ? SOUND_START : SOUND_REMINDER, led: rgba(cfg.s.calendarColor) });
       }
     }
     if (data.work) {
       const grow = data.work.active ? Math.floor((ctx.at - recvAt) / 1000) : 0;
       const day = new Date(ctx.at).toDateString();
-      if (cfg.workHours > 0) {
+      if (cfg.s.workHours > 0) {
         const key = "work|" + day;
-        if (data.work.todaySec + grow >= cfg.workHours * 3600 && !done[key]) {
+        if (data.work.todaySec + grow >= cfg.s.workHours * 3600 && !done[key]) {
           done[key] = true;
-          showText("Работа", "Уже " + cfg.workHours + " ч за день", BLUE);
+          showText(tr(cfg, "work"), tr(cfg, "workGoal", cfg.s.workHours), rgba(cfg.s.workColor));
         }
       }
-      if (cfg.breakMinutes > 0 && data.work.active) {
+      if (cfg.s.workBreakMinutes > 0 && data.work.active) {
         // One reminder per full break interval of continuous work.
-        const n = Math.floor((data.work.sessionSec + grow) / (cfg.breakMinutes * 60));
+        const n = Math.floor((data.work.sessionSec + grow) / (cfg.s.workBreakMinutes * 60));
         const key = "break|" + day + "|" + n;
         if (n >= 1 && !done[key]) {
           done[key] = true;
-          showText("Перерыв", "Уже " + n * cfg.breakMinutes + " мин за Mac, пора размяться", AMBER);
+          showText(tr(cfg, "breakTitle"), tr(cfg, "breakNow", n * cfg.s.workBreakMinutes), rgba(cfg.s.calendarColor));
         }
       }
     }
@@ -159,17 +234,21 @@ function main(): void {
   /** Sends only what changed since the last frame and clears what disappeared. */
   const sync = async (els: El[], led?: string): Promise<void> => {
     if (drawing) return;
-    const changed: El[] = [];
-    const ids: Record<string, boolean> = {};
-    els.forEach((el) => {
-      ids[el.id] = true;
-      const json = JSON.stringify(el);
-      if (sent[el.id] !== json) changed.push(el);
-    });
-    const gone = Object.keys(sent).filter((id) => !ids[id]);
-    if (changed.length === 0 && gone.length === 0) return;
     drawing = true;
     try {
+      // After a failure, or every minute, start from a blank screen: whatever else is still up there is wiped.
+      if (needClear) {
+        await device.DisplayClear({ application_name: APP } as never);
+        Object.keys(sent).forEach((id) => delete sent[id]);
+        needClear = false;
+      }
+      const changed: El[] = [];
+      const ids: Record<string, boolean> = {};
+      els.forEach((el) => {
+        ids[el.id] = true;
+        if (!sameEl(sent[el.id], el)) changed.push(el);
+      });
+      const gone = Object.keys(sent).filter((id) => !ids[id]);
       if (gone.length > 0) {
         await device.DisplayClear({ application_name: APP, element_ids: gone } as never);
         gone.forEach((id) => delete sent[id]);
@@ -179,9 +258,12 @@ function main(): void {
         if (led) body.led_notification_color = led;
         await device.DisplayDraw(body as never);
         changed.forEach((el) => {
-          sent[el.id] = JSON.stringify(el);
+          sent[el.id] = el;
         });
       }
+    } catch (err) {
+      needClear = true;
+      throw err;
     } finally {
       drawing = false;
     }
@@ -201,12 +283,12 @@ function main(): void {
     }
   };
 
-  const frame = (): void => {
-    if (!cfg || stopped) return;
+  const frame = (): Promise<void> => {
+    if (!cfg || stopped) return Promise.resolve();
     const now = Date.now();
     if (now >= refreshAt && !drawing) {
       refreshAt = now + REFRESH_MS;
-      Object.keys(sent).forEach((id) => delete sent[id]);
+      needClear = true;
     }
     let ctx = makeCtx(now);
     localAlerts(ctx);
@@ -218,40 +300,74 @@ function main(): void {
       ctx = makeCtx(now);
     }
     // Automatic rotation, held back for a while after the wheel was used.
-    if (cfg.rotateSeconds > 0 && list.length > 1 && now - lastInputAt > ROTATE_HOLD_MS && now >= rotateAt) {
-      rotateAt = now + cfg.rotateSeconds * 1000;
+    if (cfg.s.appRotateSeconds > 0 && list.length > 1 && now - lastInputAt > ROTATE_HOLD_MS && now >= rotateAt) {
+      rotateAt = now + cfg.s.appRotateSeconds * 1000;
       step(ctx, 1);
       ctx = makeCtx(now);
     }
 
     let els: El[];
     let led: string | undefined;
-    if (banner && now < banner.until) {
+    if (banner && now < banner.until && banner.overlay === false) {
+      // Sound and LED only: the screen itself shows the news.
+      led = banner.led;
+      banner.led = undefined;
+      els = draw(byId(current), ctx);
+    } else if (banner && now < banner.until) {
       els = banner.els;
       led = banner.led;
       // The LED blinks once, with the first frame of the banner.
       if (banner.led) banner.led = undefined;
     } else if (list.length === 0) {
-      els = [label("n.t", "Нет экранов", 4, { color: DIM })];
+      els = [label("n.t", tr(cfg, "noScreens"), 4, { color: DIM, align: "top_mid", x: 36, width: undefined, scroll_rate: 0 })];
     } else if (now < flashUntil) {
       let n = 0;
       list.forEach((s, k) => {
         if (s.id === current) n = k + 1;
       });
-      els = [label("f.t", byId(current).title, 0, { color: WHITE, scroll_rate: 0 }), label("f.n", n + " / " + list.length, 8, { color: DIM, scroll_rate: 0 })];
+      els = status("f", byId(current).title(cfg), n + " / " + list.length);
     } else if (!online && data.rev === 0) {
-      els = [label("o.t", "Mac не отвечает", 0, { color: RED, scroll_rate: 0 }), label("o.d", cfg.host, 8, { color: DIM, scroll_rate: 0 })];
+      els = status("o", tr(cfg, "macDown"), cfg.host, RED);
     } else {
-      els = byId(current).elements(ctx);
+      els = draw(byId(current), ctx);
     }
-    sync(els, led).catch(report);
+    if (shown !== current) {
+      const old = shown === null ? undefined : byId(shown);
+      if (old && old.leave) old.leave();
+      shown = current;
+    }
+    return sync(els, led).catch(report);
+  };
+
+  /** Draws a frame and schedules the next one: busy screens (the mascot's pulse) ask for a faster beat. */
+  const tick = (): void => {
+    if (stopped) return;
+    const began = Date.now();
+    let drawn: Promise<void>;
+    try {
+      drawn = frame();
+    } catch (err) {
+      report(err);
+      drawn = Promise.resolve();
+    }
+    // The next picture is asked for when this one has gone out, so a slow bar is never flooded.
+    drawn.then(() => {
+      if (stopped) return;
+      let wait = TICK_MS;
+      if (cfg) {
+        const s = byId(current);
+        if (s && s.tickMs) wait = s.tickMs(makeCtx(Date.now()));
+      }
+      const left = wait - (Date.now() - began);
+      tickTimer = setTimeout(tick, left > 0 ? left : 0) as unknown as number;
+    });
   };
 
   const poll = (): void => {
     if (stopped || !cfg || polling) return;
     polling = true;
     const c = cfg;
-    fetchState(c, data.rev, wantedParts(c))
+    fetchState(c, data.rev, wantedParts(c), POLL_WAIT_MS)
       .then((next) => {
         online = true;
         if (next === null) return;
@@ -266,6 +382,15 @@ function main(): void {
         lastAlertId = top;
         data = next;
         recvAt = Date.now();
+        // The screens' settings come with every answer from the Mac.
+        if (cfg && next.meta && next.meta.settings) {
+          cfg = { ...cfg, s: mergeSettings(cfg.s, next.meta.settings) };
+          enabled = ALL.filter((s) => isOn(s, cfg as Config));
+        }
+        // The settings page on the Mac saved the bar's own settings: read them again.
+        const rev = next.meta ? next.meta.settingsRev : 0;
+        if (settingsRev >= 0 && rev !== settingsRev) reload();
+        settingsRev = rev;
       })
       .catch((err) => {
         if (online) report(err);
@@ -273,14 +398,25 @@ function main(): void {
       })
       .then(() => {
         polling = false;
-        if (!stopped) pollTimer = setTimeout(poll, online ? POLL_MS : POLL_OFFLINE_MS) as unknown as number;
+        if (!stopped) pollTimer = setTimeout(poll, online ? 30 : POLL_OFFLINE_MS) as unknown as number;
       });
+  };
+
+  /** Asks the agent to do something on the Mac, then fetches the state at once. */
+  const control = (action: string): void => {
+    if (!cfg) return;
+    fetch(`http://${cfg.host}:${cfg.port}/control?t=${encodeURIComponent(cfg.token)}`, { method: "POST", body: JSON.stringify({ action }) })
+      .then(() => {
+        if (pollTimer !== undefined) clearTimeout(pollTimer);
+        pollTimer = setTimeout(poll, 600) as unknown as number;
+      })
+      .catch(report);
   };
 
   const quit = (unbind: () => void): void => {
     stopped = true;
     if (pollTimer !== undefined) clearTimeout(pollTimer);
-    if (tickTimer !== undefined) clearInterval(tickTimer);
+    if (tickTimer !== undefined) clearTimeout(tickTimer);
     // The bar takes the screen back once the last handle is released.
     device.DisplayClear({ application_name: APP } as never).catch(report);
     setTimeout(unbind, 0);
@@ -297,7 +433,8 @@ function main(): void {
       const ctx = makeCtx(now);
       if (visible(ctx).length > 1) {
         step(ctx, event.delta > 0 ? 1 : -1);
-        flashUntil = now + FLASH_MS;
+        // The screen's name stays for a moment, unless the setting says 0.
+        flashUntil = cfg.s.appFlashMs > 0 ? now + cfg.s.appFlashMs : 0;
         banner = null;
         frame();
       }
@@ -306,22 +443,61 @@ function main(): void {
       lastInputAt = now;
       const screen = byId(current);
       const count = screen.views ? screen.views(makeCtx(now)) : 1;
-      if (count > 1) {
+      const agents = data.agents ? data.agents.list : [];
+      if (current === "claude" && agents.length > 1) {
+        // Several AI agents run: OK switches between them, and the screen names the one it shows.
+        const next = nextAgent(agents, pickAgent(cfg, agents, agentPick));
+        agentPick = next.id;
+        show(status("p", next.name, agentIndex(agents, next.id) + " / " + agents.length), 900);
+        frame();
+      } else if (count > 1) {
         views[current] = ((views[current] || 0) + 1) % count;
         banner = null;
         frame();
       }
+    } else if (event.key === "start" && event.action === "short") {
+      // The big central button (Start / Pause): on the music screen it plays or pauses (if the setting is on);
+      // on the servers screen, as a list, it turns the page.
+      lastInputAt = now;
+      if (current === "music" && cfg.s.musicStartToggle) {
+        // The Mac does it; the new state comes with the next poll.
+        control("toggle-play-pause");
+      } else if (current === "servers" && cfg.s.serversView === "list") {
+        const count = byId(current).views ? (byId(current).views as (c: Ctx) => number)(makeCtx(now)) : 1;
+        if (count > 1) {
+          views[current] = ((views[current] || 0) + 1) % count;
+          banner = null;
+          frame();
+        }
+      }
     }
   });
 
+  const apply = (c: Config): void => {
+    cfg = c;
+    enabled = ALL.filter((s) => isOn(s, c));
+    rotateAt = Date.now() + c.s.appRotateSeconds * 1000;
+    needClear = true;
+  };
+
+  function reload(): void {
+    loadConfig()
+      .then((c) => {
+        const same = cfg !== null && cfg.host === c.host && cfg.port === c.port && cfg.token === c.token;
+        // The screens' settings are not the bar's own: they stay as the Mac last sent them.
+        if (cfg) c.s = cfg.s;
+        apply(c);
+        if (!same) data = { rev: 0, alerts: [] };
+        if (!enabled.some((s) => s.id === current) && enabled.length > 0) current = enabled[0].id;
+      })
+      .catch(report);
+  }
+
   loadConfig()
     .then((c) => {
-      cfg = c;
-      enabled = ALL.filter((s) => c.screens[s.id]);
+      apply(c);
       if (enabled.length > 0) current = enabled[0].id;
-      rotateAt = Date.now() + c.rotateSeconds * 1000;
-      tickTimer = setInterval(frame, TICK_MS) as unknown as number;
-      frame();
+      tick();
       poll();
     })
     .catch(report);

@@ -2,18 +2,19 @@
 
 [Русская версия](README.ru.md)
 
-A status display for the [BUSY Bar](https://busy.app) (a 72×16 LED strip with a wheel). It shows what is going on on your computer: the track that is playing, what your AI tools are doing, how long you have worked, your next meeting and whether your servers are up. The wheel switches screens, **OK** steps through a screen's pages, the big central **Start / Pause** button does one more thing on two screens (below).
+A status display for the [BUSY Bar](https://busy.app) (a 72×16 LED strip with a wheel). It shows what is going on on your computer: the track that is playing, what your AI tools are doing, how long you have worked, your next meeting and whether your servers are up. The wheel switches screens, **OK** steps through a screen's pages, the big central **Start / Pause** button does one more thing on three screens (below).
 
 It has two parts: a JavaScript app that runs **on the bar**, and an agent that runs **on your computer** (Node 24) and feeds it. On a Mac the agent comes with a menu-bar app and a settings page in the browser.
 
 | Screen | What it shows | OK / Start |
 |---|---|---|
 | Music | cover (16×16, rounded), title and artist (long ones scroll), a progress line the bar moves by itself, an optional play/pause icon | Start: optionally play / pause |
-| AI | tokens and API-price cost of the current 5-hour Claude window, time to reset, tokens today (`D`) and this week (`W`), a line for how much of the window has passed, and a mascot (Claude's own, or a rainbow ghost) that works the moment any agent works, dances when an AI is done, blinks and sleeps. Several agents running (Claude, Codex, Gemini, Aider, …)? | OK: next agent |
-| Work | yesterday and today (green while you work, yellow on a pause) | since when / streak; activity squares of the last five weeks, like GitHub's, with week and month totals |
-| Calendar | the next meeting and a countdown; it also pops up N minutes before a meeting on any screen | next meeting |
-| Mascot | optional (switched on in the AI tab of the settings page): only the mascot in the middle; while an agent works it jumps for joy and a continuous blue pulse (a fading wave) spreads around it | – |
-| Servers | one rounded tile per server with its icon (green = up, grey = not answering); the more servers, the smaller the tiles: the icon gives way to the first letter, then to the colour alone. Or a list | OK: each server. Start: the next page of the list |
+| Agents | tokens and API-price cost of the current 5-hour Claude window, time to reset, tokens today (`D`) and this week (`W`), a line for how much of the window has passed, and a mascot (Claude's own, or a rainbow ghost) that works the moment any agent works, dances when an AI is done, blinks and sleeps. Several agents running (Claude, Codex, Gemini, Aider, …)? | OK: next agent, then the mascot |
+| Work time | by default the activity squares of the last five weeks, like GitHub's (a row a week, today's cell has a white top), with the week and month totals; or yesterday and today (green while you work, yellow on a pause) | OK: the next view (squares, yesterday and today, since when / streak) |
+| Calendar | three views: **off** (only the next meeting with a countdown), **3 weeks** (a row a week, Monday first, big squares, the days with meetings red, today in a white frame) and **month** (five weeks of small squares, like the work screen's); the date and the next meeting stand beside a grid. The setting says which one comes first; it also pops up N minutes before a meeting on any screen | OK: the next view. Start: the next meeting |
+| Servers | one rounded tile per server with its icon (green = up, grey = not answering); the more servers, the smaller the tiles: the icon gives way to the first letter, then to the colour alone. Or a list, or a table of two columns (more servers fit; a name that is too long scrolls) | OK: the view (icons, list, table). Start: on icons, the card of one server at a time (icon, name and address, state and for how long; the address and the time are semi-transparent); in the list and the table, the rows move up one at a time in four quick steps |
+
+**The buttons follow one rule:** the wheel changes the **screen**, **OK** changes the **state** of the screen (a view, the next agent, the mascot), and **Start / Play / Pause** is for the screen's **extra function** (music: play / pause, servers: the card of each server on the icons view, the rows moving up in the list and the table, the calendar: the next meeting).
 
 Every screen has an accent colour you can change. Reminders: a meeting is near, you worked for N hours, time for a break, a server went down, an AI finished.
 
@@ -30,24 +31,24 @@ npm run app:run     -- --addr <bar ip> --password <bar password>
 (cd mac-agent && ./tray/install.sh)             # builds and starts the menu-bar app and the agent
 ```
 
-Then click the icon in the menu bar → **Настроить… / Settings** (the page is `http://127.0.0.1:8787/ui`). On the **General** tab enter the bar's address and password, press **Bind** (it writes the Mac's IP, port and token into the app on the bar) and **Save**. macOS asks once whether the app may read your calendar.
+Then click the icon in the menu bar → **Настроить… / Settings** (the page is `http://127.0.0.1:8787/ui`). On the **General** tab enter the bar's address and password, press **Bind** (it writes the Mac's IP and port into the app on the bar) and **Save**. macOS asks once whether the app may read your calendar.
 
 Prebuilt packages for macOS, Windows and Linux are attached to every [release](https://github.com/solowey1/busybar-status/releases) (see [Packages](#packages)). To remove the menu-bar app: `mac-agent/tray/install.sh uninstall`.
 
 ## Settings
 
-**On the bar** (Settings → the app): the language (Русский / English), the Mac's IP, port and token, and an on/off switch for each of the five screens. That is all; the bar's own settings page is flat and small, and its labels are in both languages.
+**On the bar** (Settings → the app): the language (Русский / English), the Mac's IP and port, and an on/off switch for each of the five screens (Music, Agents, Servers, Calendar, Work time). That is all; the bar's own settings page is flat and small, and its labels are in English only (the firmware takes one text per label and cannot follow the app's language; the settings page on the Mac is fully translated). There is no token on the bar: the agent knows the bar by its address (the one set on the General tab) and lets it read the state and press the big button, nothing else; everything else needs the token, which is only for the browser and the hooks.
 
 **In the browser** (`/ui`, from the menu-bar icon): everything else, one tab per screen. Changes are saved on the Mac and reach the bar within seconds.
 
 | Tab | Settings |
 |---|---|
-| General | the bar's address and password, **Bind**; **language of the whole app** (the bar, this page, the menu-bar menu, notifications; applied at once); start at login; show the app in the Dock / menu bar / both / neither; a `.local` name for this page (not `busybar`: that is the bar's own name); the look of the menu-bar icon |
+| General | the bar's address and password, **Bind**; **language of the whole app** (the bar, this page, the menu-bar menu, notifications; applied at once; the first start takes the system's language, Russian or else English); **the order of the screens** (the wheel and the tabs follow it); start at login; show the app in the Dock / menu bar / both / neither; a `.local` name for this page (not `busybar`: that is the bar's own name); the look of the menu-bar icon |
 | Music | cover and its opacity; play/pause icon (green, yellow on pause); the big **Start / Pause** button plays / pauses; accent colour (paused: half transparent) |
-| AI | mascot: Claude, ghost or none; **a separate mascot screen**; the **default agent** (the ghost is also what other AIs get when they report); **cover other screens when an AI finishes** (off by default: then only the sound and the LED tell, and the news waits on the AI screen); accent colour |
-| Work | reminder after N hours; break reminder every N minutes; how many days to keep (30); idle time that counts as a pause; accent colour; the activity squares |
-| Calendar | minutes before a meeting to pop up; calendars to ignore; accent colour (red by default) |
-| Servers | the list (name, address, icon, colours; reorder with the arrows); tiles or list (in the list the big button turns the page); colours for up / down |
+| Agents | mascot: Claude, ghost or none; **the mascot page** (the last page after the agents when you press OK; there is no separate screen for it on the wheel); the **default agent** (the ghost is also what other AIs get when they report); **cover other screens when an AI finishes** (off by default: then only the sound and the LED tell, and the news waits on the AI screen); accent colour |
+| Work time | the view to start with (heat map or yesterday and today); reminder after N hours; break reminder every N minutes; how many days to keep (30); idle time that counts as a pause; accent colour; the activity squares |
+| Calendar | **the grid** (off, 3 weeks, month: the view to start with); minutes before a meeting to pop up; calendars to ignore; accent colour (red by default) |
+| Servers | the list (name, address, icon, colours; reorder with the arrows); which view to start with (icons, list, table); colours for up / down |
 | App | auto-rotation, hide empty screens, how long the screen's name stays after the wheel (700 ms, 0 = off), notification sound |
 
 The settings page works on a phone too (open the same address on the same network, with the token link from the General tab): the tabs become a strip on top and the rows stack.
@@ -88,7 +89,7 @@ Each release has `busybar-status-<version>-<system>` archives for `darwin-arm64`
 | macOS | `Busybar status.app` with the menu-bar icon (ad-hoc signed, not notarised: open it with right click → Open the first time) | – |
 | Windows, Linux | the agent and `start.cmd` / `start.sh`, which start it and open the settings page | menu-bar app, now-playing, calendar; work time needs `xprintidle` or GNOME on Linux |
 
-Build one yourself: `npm run build && node mac-agent/tools/package.mjs <system>` (macOS packages need a Mac). The Windows and Linux packages are built by the release workflow and have not been run on those systems by the author.
+The packages are built by GitHub Actions (`.github/workflows/release.yml`), not by hand: pushing a version tag builds one on a runner of each system and attaches them to the release. To try the build without a tag, run the workflow from the Actions tab ("Run workflow"); the packages come as artifacts of the run. The Windows and Linux packages have not been run on those systems by the author. (`node mac-agent/tools/package.mjs <system>` is what the workflow runs; macOS packages need a Mac.)
 
 ## How it works
 
@@ -99,18 +100,18 @@ computer: agent (Node 24) <--- HTTP every 3 s, a tiny answer if nothing changed 
 
 The app on the bar cannot accept connections and cannot write to storage on firmware 1.3.1, so it asks the agent. The agent keeps a revision number and holds each request for up to two seconds while nothing changes (long polling), so a change reaches the bar the moment it happens. The bar counts the playhead, work time and countdowns on its own clock; scrolling and `countdown` elements are drawn by the firmware. Only elements that changed are sent to the display. The settings of the screens travel in the same answer.
 
-`~/.config/busybar-status/config.json` (private, edited from the settings page): port, token, the bar's address and password, servers, calendars to ignore, icon and Dock choice, `.local` name, login switch, and `settings` for the screens (see `mac-agent/src/appsettings.mjs`).
+`~/.config/busybar-status/config.json` (private, edited from the settings page): port, token (for the browser and the hooks), the bar's address and password, servers, calendars to ignore, icon and Dock choice, `.local` name, login switch, and `settings` for the screens (see `mac-agent/src/appsettings.mjs`).
 
 ## Development
 
 ```sh
 npm run typecheck             # the bar app
 npm run build                 # the bar app -> dist/
-(cd mac-agent && npm test)    # the agent: 23 tests
+(cd mac-agent && npm test)    # the agent: 29 tests
 node mac-agent/tools/icons.mjs appmeta src/appmeta   # redraws the ghost icons for the bar
 ```
 
-`src/` is the bar app (TypeScript, strict, runs in the firmware's JerryScript, not Node; its heap is 512 KiB in the manifest; screens keep their buffers only while they are on the display, and running out of heap restarts the whole bar, so keep per-frame allocations small), `mac-agent/` the agent: `src/` sources, `ui/` the settings page, `tray/` the menu-bar app (Swift), `tools/` icons and packaging. Server tile icons are 9×9 LED versions of [Lucide](https://lucide.dev) icons (ISC licence), made by `mac-agent/tools/glyphs/raster.py` into `src/glyphs.json` (one 81-character string per icon); the buttons on the settings page use Lucide icons too. Read `AGENTS.md` before changing the bar app.
+`src/` is the bar app (TypeScript, strict, runs in the firmware's JerryScript, not Node; its heap is 512 KiB in the manifest; screens keep their buffers only while they are on the display, and running out of heap restarts the whole bar, so keep per-frame allocations small), `mac-agent/` the agent: `src/` sources, `ui/` the settings page, `tray/` the menu-bar app (Swift), `tools/` icons and packaging. The mascot page's wave is a native bar animation, `src/animations/pulse.anim`, written by `node mac-agent/tools/anim.mjs pulse` (the `.anim` format, "bicycle1", is described in the [firmware's `anim_file_format.h`](https://github.com/busy-app/busybar-firmware/blob/dev/lib/anim_file/anim_file_format.h); the writer uses BGRA8888 raw frames, which the bar plays; BGR888 it did not). The firmware loops it by itself, so the app sends the element once. Server tile icons are 9×9 LED versions of [Lucide](https://lucide.dev) icons (ISC licence), made by `mac-agent/tools/glyphs/raster.py` into `src/glyphs.json` (one 81-character string per icon); the buttons on the settings page use Lucide icons too. Read `AGENTS.md` before changing the bar app.
 
 ## BUSY app template reference
 
@@ -216,7 +217,7 @@ By default the build packs that folder into `dist/app.solowey.busybar-status.tgz
 
 ## Releasing
 
-Pushing a git tag matching the manifest `version` (e.g. `0.1.0`) builds the app and attaches `app.solowey.busybar-status-<version>.tgz` to a GitHub release, followed by the agent packages for macOS, Windows and Linux (see Packages above). The release notes open with the app's name, id, version and API version. The release fails when the tag differs from the manifest `version`.
+Pushing a git tag matching the manifest `version` (e.g. `0.1.0`) builds the app and attaches `app.solowey.busybar-status-<version>.tgz` to a GitHub release, followed by the agent packages for macOS (arm64 and Intel), Windows and Linux (x64 and arm64) built on runners of those systems (see Packages above). The release notes open with the app's name, id, version and API version. The release fails when the tag differs from the manifest `version`.
 
 ## Manifest
 

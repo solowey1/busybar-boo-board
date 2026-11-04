@@ -1,0 +1,36 @@
+{
+  "format_version": 1,
+  "version": 1,
+  "fields": {
+    "screens": {
+      "type": "group",
+      "label": "Экраны",
+      "description": "Какие экраны показывать. Колесо переключает их по кругу.",
+      "fields": {
+        "screen_music": { "type": "boolean", "label": "Музыка", "default": true },
+        "screen_claude": { "type": "boolean", "label": "Claude", "default": true },
+        "screen_work": { "type": "boolean", "label": "Время работы", "default": true },
+        "screen_calendar": { "type": "boolean", "label": "Календарь", "default": true },
+        "screen_servers": { "type": "boolean", "label": "Серверы", "default": true }
+      }
+    },
+    "agent": {
+      "type": "group",
+      "label": "Агент на Mac",
+      "fields": {
+        "agent_host": { "type": "string", "label": "Адрес Mac", "description": "IP-адрес Mac в локальной сети", "default": "192.168.1.35", "max_length": 64 },
+        "agent_port": { "type": "integer", "label": "Порт", "default": 8787, "min": 1024, "max": 65535 },
+        "agent_token": { "type": "string", "label": "Токен", "description": "Из ~/.config/busybar-status/config.json на Mac", "default": "", "max_length": 64, "sensitive": true }
+      }
+    },
+    "alerts": {
+      "type": "group",
+      "label": "Уведомления",
+      "fields": {
+        "alert_sound": { "type": "boolean", "label": "Звук", "default": true },
+        "calendar_minutes": { "type": "integer", "label": "Встреча: за сколько минут", "description": "0 — не показывать заранее", "default": 5, "min": 0, "max": 60 },
+        "work_hours": { "type": "integer", "label": "Напомнить после, часов", "description": "Сколько часов активной работы за день, 0 — выключено", "default": 0, "min": 0, "max": 16 }
+      }
+    }
+  }
+}

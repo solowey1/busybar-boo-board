@@ -22,10 +22,12 @@ jobs:
 
       - run: npm ci
 
+      # Every app has the same version, the one in package.json.
+      - run: npm run versions
+
       - run: npm run typecheck
 
       - run: npm run build
 
       # The Mac agent's tests (the macOS-only ones skip themselves elsewhere).
       - run: npm test
-        working-directory: mac-agent

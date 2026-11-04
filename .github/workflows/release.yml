@@ -1,5 +1,6 @@
-# Tag 0.1.0 → release with <id>-<version>.tgz attached, whether the tag is pushed from a console or made by a release in the GitHub UI.
-# The tag must match the version in src/appmeta/manifest.json, and the manifest must carry an api_version.
+# Tag 0.2.0 → release with an <id>-<version>.tgz for every app of the repository (the one with all the screens, and one for each screen),
+# whether the tag is pushed from a console or made by a release in the GitHub UI.
+# The tag must match the version of every app (package.json and the manifests), and each manifest must carry an api_version.
 # The same tag builds the agent's packages (macOS arm64 and Intel, Linux x64 and arm64, Windows) on runners of their own systems
 # and attaches them to the release. Packages are not built by hand: to try the build without a tag, run this workflow from the
 # Actions tab ("Run workflow"); the packages come as artifacts of the run.
@@ -27,54 +28,45 @@ jobs:
 
       - run: npm ci
 
-      - name: Read the manifest
-        id: manifest
+      # All the apps of the repository share one version, and the tag is it.
+      - name: Check the versions against the tag
         run: |
-          version=$(jq -er .version src/appmeta/manifest.json)
-          id=$(jq -er .id src/appmeta/manifest.json)
-          name=$(jq -er .name src/appmeta/manifest.json)
-          api_version=$(jq -r '.api_version // empty' src/appmeta/manifest.json)
-          if [ "$version" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::tag $GITHUB_REF_NAME, manifest $version"
-            exit 1
-          fi
-          if [ -z "$api_version" ]; then
-            echo "::error::src/appmeta/manifest.json has no api_version"
-            exit 1
-          fi
-          echo "archive=$id-$version.tgz" >> "$GITHUB_OUTPUT"
-          # The app's details, put at the top of the release notes.
+          node tools/check-versions.mjs "$GITHUB_REF_NAME"
+          for f in apps/*/src/appmeta/manifest.json; do
+            if [ -z "$(jq -r '.api_version // empty' "$f")" ]; then
+              echo "::error::$f has no api_version"
+              exit 1
+            fi
+          done
           {
-            echo "## App details"
+            echo "## Apps for the bar"
             echo
-            echo "- Name: $name"
-            echo "- ID: $id"
-            echo "- Version: $version"
-            echo "- API version: $api_version"
+            echo "- **Busybar status** (\`app.solowey.busybar-status\`): all the screens in one app, the wheel goes round them."
+            echo "- One app for each screen: \`status-music\`, \`status-agents\`, \`status-servers\`, \`status-calendar\`, \`status-work\`. Install only the ones you need."
+            echo "- Version: $GITHUB_REF_NAME"
           } > "$RUNNER_TEMP/details.md"
 
       - run: npm run typecheck
 
+      # One archive for each app, named <id>-<version>.tgz.
       - run: npm run build -- --tgz-name "{id}-{version}.tgz"
 
-      # A release made from the UI already exists by the time the tag push gets here: attach the archive to it and keep whatever notes were written by hand, below the app's details.
+      # A release made from the UI already exists by the time the tag push gets here: attach the archives to it and keep whatever notes were written by hand, below the apps' details.
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          files=$(ls apps/*/dist/*.tgz)
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" \
-              "dist/${{ steps.manifest.outputs.archive }}" \
-              --clobber
+            gh release upload "$GITHUB_REF_NAME" $files --clobber
             gh release view "$GITHUB_REF_NAME" --json body --jq .body > "$RUNNER_TEMP/body.md"
             # A re-run finds the details already there.
-            if ! grep -q "^## App details" "$RUNNER_TEMP/body.md"; then
+            if ! grep -q "^## Apps for the bar" "$RUNNER_TEMP/body.md"; then
               { cat "$RUNNER_TEMP/details.md"; echo; cat "$RUNNER_TEMP/body.md"; } > "$RUNNER_TEMP/notes.md"
               gh release edit "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
             fi
           else
-            gh release create "$GITHUB_REF_NAME" \
-              "dist/${{ steps.manifest.outputs.archive }}" \
+            gh release create "$GITHUB_REF_NAME" $files \
               --title "$GITHUB_REF_NAME" \
               --notes-file "$RUNNER_TEMP/details.md" \
               --generate-notes

@@ -40,8 +40,8 @@ const lanAddress = () => {
   return "";
 };
 
-/** The language the bar reported last: only a change on the bar's side is taken over, not its old value. */
-let lastBarLang = null;
+/** The language each app on the bar reported last: only a change on that app's side is taken over, not its old value. */
+const lastBarLang = new Map();
 // The settings page is also served on port 80 while a name is set, so that http://NAME.local opens it without ":8787".
 let port80 = null;
 let port80ok = false;
@@ -84,13 +84,14 @@ const app = {
   },
   calendarFeed: (body) => calendar.feed(body),
   /** The language the bar's own settings say; the agent follows it, unless the page has just changed it. */
-  barLang(lang) {
+  barLang(lang, appId = "") {
     if (!["ru", "en"].includes(lang)) return;
-    const before = lastBarLang;
-    lastBarLang = lang;
-    // The first answer only tells what the bar has; the page on the Mac may have changed the language
-    // a moment ago and the bar not have read it yet, so an unchanged old value is never taken back.
-    if (before === null || before === lang || lang === config.lang) return;
+    const before = lastBarLang.get(appId);
+    lastBarLang.set(appId, lang);
+    // The first answer of an app only tells what it has; the page on the Mac may have changed the language a moment ago and
+    // the app not have read it yet, so an unchanged old value is never taken back. Each app is followed on its own,
+    // since several apps of ours can be on the bar with a language each.
+    if (before === undefined || before === lang || lang === config.lang) return;
     config = { ...config, lang };
     saveConfig(config);
   },
@@ -121,11 +122,10 @@ async function syncBarLang() {
   if (!config.langPending) return;
   if (!config.bar.host) return void setTimeout(syncBarLang, 30_000).unref();
   try {
-    const doc = await bar.getSettings(config.bar);
-    if (doc?.values?.lang !== config.lang) {
-      await bar.putSettings(config.bar, { version: doc.version, values: { ...doc.values, lang: config.lang } });
-      app.settingsChanged();
-    }
+    const apps = await bar.installedApps(config.bar);
+    if (apps.ids.length === 0) throw new Error("no app of ours on the bar yet");
+    await bar.putEverywhere(config.bar, { lang: config.lang }, apps.ids);
+    app.settingsChanged();
     config = { ...config, langPending: false };
     saveConfig(config);
   } catch (err) {
@@ -134,6 +134,32 @@ async function syncBarLang() {
   }
 }
 setTimeout(syncBarLang, 3000).unref();
+
+/**
+ * An app of ours that appears on the bar after the agent has seen the others (a screen installed on its own) is given the
+ * common settings once: the language, and where to find this Mac. The apps that were there when the agent first looked
+ * (or in an earlier run) keep what they have: they may have been set by hand.
+ */
+async function welcomeNewApps() {
+  if (!config.bar.host) return;
+  try {
+    const apps = await bar.installedApps(config.bar);
+    const welcomed = new Set(config.welcomed ?? []);
+    const fresh = apps.ids.filter((id) => !welcomed.has(id));
+    if (fresh.length === 0) return;
+    // The first look only records what is there.
+    if (config.welcomed !== undefined) {
+      await bar.putEverywhere(config.bar, { lang: config.lang, agent_host: lanAddress(), agent_port: config.port }, fresh);
+      app.settingsChanged();
+    }
+    config = { ...config, welcomed: [...welcomed, ...fresh] };
+    saveConfig(config);
+  } catch (err) {
+    log(`bar apps: ${err.message}`);
+  }
+}
+setTimeout(welcomeNewApps, 8000).unref();
+setInterval(welcomeNewApps, 30_000).unref();
 
 const server = createApi({ hub, app, log });
 server.listen(config.port, config.host, () => {

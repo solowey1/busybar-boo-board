@@ -9,6 +9,7 @@ import { toCalendar } from "../src/sources/calendar.mjs";
 import { applyChange, loadConfig, publicConfig, systemLang } from "../src/config.mjs";
 import { encodeAnim } from "../tools/anim.mjs";
 import { startServers } from "../src/sources/servers.mjs";
+import * as barApi from "../src/bar.mjs";
 import { createServer } from "node:http";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -393,6 +394,46 @@ test("servers: the bar gets the address and how many minutes each has been up or
     assert.ok(items.every((i) => Number.isInteger(i.age) && i.age >= 0));
   } finally {
     running.stop();
+    web.close();
+  }
+});
+
+test("bar: finds which of our apps are installed and writes the common settings to each, keeping what is its own", async () => {
+  const docs = {
+    "app.solowey.busybar-status": { version: 7, values: { lang: "ru", agent_host: "1.1.1.1", agent_port: 8787, screen_music: true, screen_work: false } },
+    "app.solowey.status-music": { version: 1, values: { lang: "en", agent_host: "2.2.2.2", agent_port: 9000 } },
+  };
+  const web = createServer((req, res) => {
+    const url = new URL(req.url, "http://x");
+    const id = url.searchParams.get("app_id");
+    res.setHeader("Content-Type", "application/json");
+    if (url.pathname === "/api/apps/list") return res.end(JSON.stringify({ apps: [{ id: "app.busy.clock" }, ...Object.keys(docs).map((i) => ({ id: i }))] }));
+    if (req.method === "GET") return res.end(JSON.stringify(docs[id]));
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", () => {
+      docs[id] = JSON.parse(body);
+      res.end("{}");
+    });
+  });
+  await new Promise((r) => web.listen(0, "127.0.0.1", r));
+  const bar = { host: `127.0.0.1:${web.address().port}`, password: "p" };
+  try {
+    const apps = await barApi.installedApps(bar);
+    assert.equal(apps.combined, true);
+    assert.deepEqual(apps.ids, ["app.solowey.busybar-status", "app.solowey.status-music"]);
+    // the combined app has every screen; a screen with no app of its own is covered by it
+    assert.deepEqual(Object.values(apps.screens), [true, true, true, true, true]);
+    await barApi.putEverywhere(bar, { lang: "ru", agent_host: "3.3.3.3", agent_port: 8787, screen_work: true, nonsense: 1 }, apps.ids);
+    assert.deepEqual(docs["app.solowey.busybar-status"].values, { lang: "ru", agent_host: "3.3.3.3", agent_port: 8787, screen_music: true, screen_work: true });
+    // the module has no screen switches and no unknown keys appear in it
+    assert.deepEqual(docs["app.solowey.status-music"].values, { lang: "ru", agent_host: "3.3.3.3", agent_port: 8787 });
+    assert.equal(docs["app.solowey.status-music"].version, 1);
+    // without the combined app only the modules count
+    delete docs["app.solowey.busybar-status"];
+    const only = await barApi.installedApps(bar);
+    assert.deepEqual(only.screens, { music: true, ai: false, servers: false, calendar: false, work: false });
+  } finally {
     web.close();
   }
 });

@@ -1,5 +1,6 @@
 import type { Config, El, Screen, WorkData } from "../types";
-import { DIM, GREEN, WHITE, YELLOW, fmtHM, label, mix, progressLine, rgba, status, tr, xpm } from "../util";
+import { DIM, GREEN, WHITE, YELLOW, fmtHM, label, mix, progressLine, rgba, status, tr } from "../util";
+import { WEEKS, weekGrid } from "./grid";
 
 const pad2 = (n: number) => (n < 10 ? "0" + n : String(n));
 
@@ -8,9 +9,6 @@ const row = (id: string, name: string, value: string, y: number, nameColor: stri
   label(id + ".n", name, y, { color: nameColor, scroll_rate: 0, width: 44, x }),
   label(id + ".v", value, y, { color: valueColor, scroll_rate: 0, width: undefined, align: "top_right", x: 72 }),
 ];
-
-/** Last five weeks as squares, like GitHub's: a row is a week, a column is a weekday (Monday first). */
-const WEEKS = 5;
 
 function activityGrid(w: WorkData, today: number, cfg: Config, now: Date): { grid: El; week: number; month: number } {
   const days = (w.recent || []).concat([today]); // oldest first, today last
@@ -29,22 +27,7 @@ function activityGrid(w: WorkData, today: number, cfg: Config, now: Date): { gri
   // Five levels from "nothing" to the accent colour, mixed with black (the bitmap has no alpha).
   const accent = cfg.s.workColor;
   const shades = [mix(accent, 0.88, "#000000"), mix(accent, 0.62, "#000000"), mix(accent, 0.38, "#000000"), mix(accent, 0.15, "#000000"), accent];
-  const keys = "abcde";
-  const rows: string[] = [];
-  for (let r = 0; r < WEEKS; r++) {
-    for (let dy = 0; dy < 2; dy++) {
-      let line = "";
-      for (let col = 0; col < 7; col++) {
-        const sec = cells[r * 7 + col];
-        const ch = sec < 0 ? "." : keys.charAt(sec <= 0 ? 0 : Math.min(4, 1 + Math.floor((sec / max) * 3.999)));
-        line += ch + ch + (col < 6 ? "." : "");
-      }
-      rows.push(line);
-    }
-    if (r < WEEKS - 1) rows.push(".".repeat(20));
-  }
-  const colors: Record<string, string> = {};
-  keys.split("").forEach((k, i) => (colors[k] = shades[i]));
+  const levels = cells.map((sec) => (sec < 0 ? -1 : sec <= 0 ? 0 : Math.min(4, 1 + Math.floor((sec / max) * 3.999))));
   let week = 0;
   let month = 0;
   days.forEach((sec, i) => {
@@ -52,8 +35,12 @@ function activityGrid(w: WorkData, today: number, cfg: Config, now: Date): { gri
     if (k < 7) week += sec;
     if (k < 30) month += sec;
   });
-  return { grid: xpm("w.grid", rows, 1, 1, colors), week, month };
+  return { grid: weekGrid("w.grid", levels, shades, (WEEKS - 1) * 7 + wd, 1, 1), week, month };
 }
+
+/** The states of the screen, the one the settings name first; OK steps to the next. */
+const STATES = ["grid", "today", "since"];
+const stateOf = (cfg: Config, view: number): string => STATES[((cfg.s.workView === "today" ? 1 : 0) + view) % STATES.length];
 
 export const work: Screen = {
   id: "work",
@@ -65,16 +52,17 @@ export const work: Screen = {
     // While the Mac is in use the day total grows; the bar adds the time since the agent's last report.
     const grow = w.active ? Math.floor((at - recvAt) / 1000) : 0;
     const today = w.todaySec + grow;
-    if (view === 1) {
-      // View 2 (OK): when the day started and how long the current stretch is.
+    const state = stateOf(cfg, view);
+    if (state === "since") {
+      // When the day started and how long the current stretch is.
       const start = w.since ? new Date(w.since * 1000) : null;
       return [
         label("w.t1", start ? tr(cfg, "since") + " " + pad2(start.getHours()) + ":" + pad2(start.getMinutes()) : tr(cfg, "notStarted"), 0, { color: WHITE, scroll_rate: 0 }),
         label("w.t2", tr(cfg, "streak") + " " + fmtHM(w.sessionSec + grow), 8, { color: DIM, scroll_rate: 0 }),
       ];
     }
-    if (view === 2) {
-      // View 3 (OK): the activity grid and the totals of the week and the month.
+    if (state === "grid") {
+      // The activity grid and the totals of the week and the month.
       const g = activityGrid(w, today, cfg, new Date(at));
       return [g.grid, ...row("w.a", tr(cfg, "week"), fmtHM(g.week), 0, DIM, rgba(cfg.s.workColor), 24), ...row("w.b", tr(cfg, "month"), fmtHM(g.month), 8, DIM, rgba(cfg.s.workColor), 24)];
     }

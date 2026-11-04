@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { networkInterfaces } from "node:os";
 import { applyChange, loadConfig, saveConfig } from "./config.mjs";
 import { forBar } from "./appsettings.mjs";
+import * as bar from "./bar.mjs";
 import { Hub } from "./hub.mjs";
 import { createApi } from "./server.mjs";
 import { startMusic } from "./sources/music.mjs";
@@ -111,6 +112,28 @@ const app = {
     };
   },
 };
+
+/**
+ * A first start took the system's language. The app on the bar has only its own default until it is told, so once the bar
+ * can be reached its language is set to the same, one time; whoever picks a language on purpose is never overridden.
+ */
+async function syncBarLang() {
+  if (!config.langPending) return;
+  if (!config.bar.host) return void setTimeout(syncBarLang, 30_000).unref();
+  try {
+    const doc = await bar.getSettings(config.bar);
+    if (doc?.values?.lang !== config.lang) {
+      await bar.putSettings(config.bar, { version: doc.version, values: { ...doc.values, lang: config.lang } });
+      app.settingsChanged();
+    }
+    config = { ...config, langPending: false };
+    saveConfig(config);
+  } catch (err) {
+    log(`bar language: ${err.message}`);
+    setTimeout(syncBarLang, 30_000).unref();
+  }
+}
+setTimeout(syncBarLang, 3000).unref();
 
 const server = createApi({ hub, app, log });
 server.listen(config.port, config.host, () => {

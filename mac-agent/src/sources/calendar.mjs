@@ -20,22 +20,43 @@ async function ensureBinary() {
   await run("/usr/bin/swiftc", ["-O", "-o", BIN, SRC, "-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist", "-Xlinker", PLIST], 180_000);
 }
 
-/** Events that the bar should show: only the next few, titles trimmed. */
+/** Local midnight of the day `n` days after `base` (a Date); right across a change of clocks. */
+const addDays = (base, n) => {
+  const d = new Date(base);
+  d.setDate(d.getDate() + n);
+  return d;
+};
+
+/**
+ * Events that the bar should show: the next few with titles trimmed, and the grid of five weeks from this
+ * week's Monday with the number of meetings on each day (those that are over count too).
+ */
 export function toCalendar(events, { now = Date.now(), exclude = [] } = {}) {
   const nowS = Math.floor(now / 1000);
-  const list = events
-    .filter((e) => !exclude.includes(e.calendar) && e.end > nowS)
+  const kept = events.filter((e) => !exclude.includes(e.calendar));
+  const list = kept
+    .filter((e) => e.end > nowS)
     .slice(0, 3)
     // startIn/endIn are relative: the bar adds them to its own clock.
     .map((e) => ({ title: String(e.title).slice(0, 60), startIn: e.start - nowS, endIn: e.end - nowS }));
-  return { events: list, sentAt: nowS };
+
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  const wd = (today.getDay() + 6) % 7; // Monday = 0
+  const monday = addDays(today, -wd);
+  const days = Array.from({ length: 35 }, (_, i) => Math.floor(addDays(monday, i).getTime() / 1000));
+  const counts = days.map((from, i) => {
+    const to = i === 34 ? Math.floor(addDays(monday, 35).getTime() / 1000) : days[i + 1];
+    return kept.filter((e) => e.start >= from && e.start < to).length;
+  });
+  return { events: list, sentAt: nowS, grid: { counts, today: wd, wd, d: today.getDate(), m: today.getMonth() } };
 }
 
 /** Publishes a list of events when it changed; the bar counts down from its own clock. */
 function publish(hub, events, exclude) {
   const part = toCalendar(events, { exclude });
   // startIn changes every minute; publish whenever the event list (not the clock) changes.
-  const key = JSON.stringify(part.events.map((e) => [e.title, e.startIn + part.sentAt, e.endIn + part.sentAt].map((v) => (typeof v === "number" ? Math.round(v / 30) : v))));
+  const key = JSON.stringify(part.grid) + JSON.stringify(part.events.map((e) => [e.title, e.startIn + part.sentAt, e.endIn + part.sentAt].map((v) => (typeof v === "number" ? Math.round(v / 30) : v))));
   if (key !== publish.lastKey) {
     publish.lastKey = key;
     hub.set("calendar", { ...part, ok: true });
@@ -57,7 +78,7 @@ export function startCalendar({ hub, log, getExclude = () => [], intervalMs = 60
         await ensureBinary();
         ready = true;
       }
-      const events = JSON.parse(await run(BIN, ["24"], 70_000));
+      const events = JSON.parse(await run(BIN, ["840"], 70_000));
       failed = false;
       publish(hub, events, getExclude());
     } catch (err) {

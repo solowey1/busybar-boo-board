@@ -59,11 +59,11 @@ function draw(p: Pose): string[] {
     set(x, top + 7, "#");
     if (p.legRows !== 1) set(x, top + 8, "#");
   });
-  // Eyes are holes in the body.
+  // Eyes are black pixels ("e"), not holes: a hole would show whatever is behind the mascot, such as the wave.
   const e = p.eyes || "open";
   const shift = e === "left" ? -1 : e === "right" ? 1 : 0;
   const row = e === "down" ? 2 : 1;
-  const hole = (x: number, y: number) => set(x, top + y, ".");
+  const hole = (x: number, y: number) => set(x, top + y, "e");
   if (e === "happy") {
     // ^ ^ : one pixel on top, two below
     [3, 8].forEach((x) => {
@@ -154,11 +154,11 @@ function drawGhost(p: Pose): string[] {
   const top = p.top !== undefined ? p.top : 4 - (p.lift || 0);
   const x0 = p.sway || 0;
   GHOST.concat(HEM[p.wave || 0]).forEach((row, r) => row.split("").forEach((c, x) => c === "x" && set(x0 + x, top + r, BANDS.charAt(r))));
-  // Eyes: holes, two rows tall like the Claude mascot's.
+  // Eyes: black pixels, two rows tall like the Claude mascot's.
   const e = p.eyes || "open";
   const shift = e === "left" ? -1 : e === "right" ? 1 : 0;
   const row = e === "down" ? 4 : 3;
-  const hole = (x: number, y: number) => set(x0 + x, top + y, ".");
+  const hole = (x: number, y: number) => set(x0 + x, top + y, "e");
   if (e === "happy") {
     [3, 7].forEach((x) => {
       hole(x, 3);
@@ -191,8 +191,8 @@ export interface Sprite {
 
 /** The same, for a pose made by hand (the pulse screen builds its own jumps). */
 export function spriteOf(p: Pose, body: string, style: Style = "claude"): Sprite {
-  if (style === "ghost") return { rows: drawGhost(p), colors: { o: "#D97757", y: "#FFD000", g: "#3DDC84", b: "#4DA3FF", z: "#4DA3FF" } };
-  return { rows: draw(p), colors: { "#": body, z: "#4DA3FF" } };
+  if (style === "ghost") return { rows: drawGhost(p), colors: { o: "#D97757", y: "#FFD000", g: "#3DDC84", b: "#4DA3FF", z: "#4DA3FF", e: "#000000" } };
+  return { rows: draw(p), colors: { "#": body, z: "#4DA3FF", e: "#000000" } };
 }
 
 /** One frame of a mascot: 16 rows of 12 characters and the colour of each character. */
@@ -200,9 +200,9 @@ export function mascotSprite(mood: Mood, at: number, body: string, style: Style 
   if (style === "ghost") {
     const p = pose(mood, at);
     // Asleep it hovers at the bottom edge; the "z" frames come from the same slow cycle.
-    return { rows: drawGhost(mood === "sleep" ? { ...p, top: 5 } : p), colors: { o: "#D97757", y: "#FFD000", g: "#3DDC84", b: "#4DA3FF", z: "#4DA3FF" } };
+    return { rows: drawGhost(mood === "sleep" ? { ...p, top: 5 } : p), colors: { o: "#D97757", y: "#FFD000", g: "#3DDC84", b: "#4DA3FF", z: "#4DA3FF", e: "#000000" } };
   }
-  return { rows: draw(pose(mood, at)), colors: { "#": body, z: "#4DA3FF" } };
+  return { rows: draw(pose(mood, at)), colors: { "#": body, z: "#4DA3FF", e: "#000000" } };
 }
 
 /**

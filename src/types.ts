@@ -35,6 +35,8 @@ export interface WorkData {
 export interface CalendarData {
   ok: boolean;
   events: { title: string; startIn: number; endIn: number }[];
+  /** five weeks from this week's Monday: meetings per day, which cell is today, today's weekday (0 = Monday), day and month (0-based) */
+  grid?: { counts: number[]; today: number; wd: number; d: number; m: number };
 }
 export interface ServerItem {
   name: string;
@@ -44,6 +46,10 @@ export interface ServerItem {
   /** "#RRGGBB" or "" for the default */
   color?: string;
   downColor?: string;
+  /** the address from its URL, "host:port" */
+  host?: string;
+  /** minutes it has been in its present state (up or down) */
+  age?: number;
 }
 export interface ServersData {
   items: ServerItem[];
@@ -76,7 +82,7 @@ export interface AppSettings {
   /** "claude", "ghost" or "none" */
   aiMascot: "claude" | "ghost" | "none";
   aiOverlay: boolean;
-  /** a separate screen with only the mascot */
+  /** OK on the agents screen ends the round of agents with the mascot */
   aiMascotScreen: boolean;
   /** "auto" or the id of an agent */
   aiDefaultAgent: string;
@@ -84,9 +90,14 @@ export interface AppSettings {
   workHours: number;
   workBreakMinutes: number;
   workColor: string;
+  /** which view of the work screen comes first */
+  workView: "grid" | "today";
   calendarMinutes: number;
   calendarColor: string;
-  serversView: "tiles" | "list";
+  /** which view of the calendar comes first: only the meeting, a grid of 3 weeks, or a month */
+  calendarView: "off" | "weeks3" | "month";
+  /** which view comes first: icons, a list, or a table of two columns */
+  serversView: "tiles" | "list" | "table";
   serversColorOk: string;
   serversColorDown: string;
   serversTileDown: string;
@@ -95,6 +106,8 @@ export interface AppSettings {
   /** how long the screen's name stays after the wheel; 0 = not shown */
   appFlashMs: number;
   appAlertSound: boolean;
+  /** the screens in the order of the wheel: "music,claude,servers,calendar,work" */
+  appOrder: string;
 }
 
 export interface AgentState {
@@ -110,7 +123,7 @@ export interface AgentState {
   alerts: AgentAlert[];
 }
 
-export type ScreenId = "music" | "claude" | "mascot" | "work" | "calendar" | "servers";
+export type ScreenId = "music" | "claude" | "work" | "calendar" | "servers";
 export type Lang = "ru" | "en";
 
 export interface Config {
@@ -119,7 +132,6 @@ export interface Config {
   lang: Lang;
   host: string;
   port: number;
-  token: string;
   /** everything else, from the Mac; the defaults hold until the first answer */
   s: AppSettings;
 }
@@ -134,14 +146,14 @@ export interface Ctx {
   at: number;
   recvAt: number;
   online: boolean;
-  /** Which sub-view of the screen is shown; the OK button steps through them. */
+  /** Which state of the screen is shown; the OK button steps through them. */
   view: number;
+  /** The screen's extra counter, moved by the Play / Pause button (the calendar: which meeting). */
+  extra: number;
   /** The mascot dances until this time (ms), after an AI has finished. */
   danceUntil: number;
   /** An AI has just finished and the screen shows it next to the mascot, instead of a banner over everything. */
   done: { until: number; head: string; text: string; other: boolean } | null;
-  /** The agent the user picked with OK, "" = none picked. */
-  agentPick: string;
 }
 
 export interface Screen {
@@ -152,6 +164,8 @@ export interface Screen {
   /** True when there is nothing to show; such a screen can be hidden by a setting. */
   isEmpty?(ctx: Ctx): boolean;
   elements(ctx: Ctx): El[];
+  /** The Play / Pause button: an extra function of the screen. Returns the new state and counter (what it leaves out stays). */
+  start?(ctx: Ctx): { view?: number; extra?: number };
   /** How often the screen wants to be drawn again, in ms; the default is every third of a second. */
   tickMs?(ctx: Ctx): number;
   /** The screen is no longer on the display: let go of whatever it keeps between frames. */

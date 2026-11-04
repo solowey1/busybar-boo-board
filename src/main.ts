@@ -1,11 +1,10 @@
 import { device } from "@shared/device";
 import manifest from "./appmeta/manifest.json";
 import { fetchState } from "./agent";
-import { nextAgent, pickAgent } from "./agents";
+import { aiPages, orderedAgents } from "./agents";
 import { loadConfig, mergeSettings } from "./config";
 import { calendar } from "./screens/calendar";
 import { claude } from "./screens/claude";
-import { mascotScreen } from "./screens/mascot";
 import { music } from "./screens/music";
 import { servers } from "./screens/servers";
 import { work } from "./screens/work";
@@ -15,7 +14,7 @@ import { DIM, RED, WHITE, label, rgba, status, tr } from "./util";
 /** The name the app draws under; the device clears elements by this id. */
 const APP = manifest.id;
 
-const ALL: Screen[] = [music, claude, mascotScreen, work, calendar, servers];
+const ALL: Screen[] = [music, claude, work, calendar, servers];
 // A request to the Mac is held there for up to this long while nothing changes, so news arrives at once.
 const POLL_WAIT_MS = 2000;
 const POLL_OFFLINE_MS = 10000;
@@ -97,6 +96,8 @@ function main(): void {
   let enabled: Screen[] = [];
   let current: ScreenId = "music";
   const views: Record<string, number> = {};
+  /** The Play / Pause counter of each screen (the calendar: which meeting). */
+  const extras: Record<string, number> = {};
   let data: AgentState = { rev: 0, alerts: [] };
   let recvAt = Date.now();
   let online = false;
@@ -105,7 +106,6 @@ function main(): void {
   let banner: Banner | null = null;
   let flashUntil = 0;
   let danceUntil = 0;
-  let agentPick = "";
   let claudeDone: { until: number; head: string; text: string; other: boolean } | null = null;
   let settingsRev = -1;
   let needClear = false;
@@ -123,23 +123,31 @@ function main(): void {
   let pollTimer: number | undefined;
   let tickTimer: number | undefined;
 
-  /** The mascot screen has no switch of its own on the bar: it is turned on on the settings page, with the AI screen. */
-  const isOn = (s: Screen, c: Config): boolean => (s.id === "mascot" ? c.s.aiMascotScreen : c.screens[s.id]);
+  const isOn = (s: Screen, c: Config): boolean => c.screens[s.id];
+
+  /** The screens that are on, in the order of the settings page. */
+  const chosen = (c: Config): Screen[] => {
+    const order = c.s.appOrder.split(",");
+    const rank = (s: Screen): number => {
+      const i = order.indexOf(s.id);
+      return i < 0 ? order.length : i;
+    };
+    return ALL.filter((s) => isOn(s, c)).sort((a, b) => rank(a) - rank(b));
+  };
 
   const wantedParts = (c: Config): string[] => {
     const ids: string[] = [];
     ALL.forEach((s) => {
-      // The mascot screen draws from what the AI screen draws from.
-      if (isOn(s, c) && s.id !== "mascot") ids.push(s.id);
+      if (isOn(s, c)) ids.push(s.id);
     });
-    if ((c.screens.claude || c.s.aiMascotScreen) && ids.indexOf("agents") < 0) ids.push("agents");
+    if (c.screens.claude && ids.indexOf("agents") < 0) ids.push("agents");
     if ((c.s.calendarMinutes > 0 || c.s.appHideEmpty) && ids.indexOf("calendar") < 0) ids.push("calendar");
     if ((c.s.workHours > 0 || c.s.workBreakMinutes > 0) && ids.indexOf("work") < 0) ids.push("work");
     // "meta" says when the settings page saved something, so the app reads its settings again.
     return ids.concat(["meta"]);
   };
 
-  const makeCtx = (now: number): Ctx => ({ cfg: cfg as Config, data, at: now, recvAt, online, view: views[current] || 0, danceUntil, done: claudeDone, agentPick });
+  const makeCtx = (now: number): Ctx => ({ cfg: cfg as Config, data, at: now, recvAt, online, view: views[current] || 0, extra: extras[current] || 0, danceUntil, done: claudeDone });
 
   /** The screens the wheel goes through: the enabled ones, minus the empty ones when that is asked for. */
   const visible = (ctx: Ctx): Screen[] => {
@@ -285,6 +293,8 @@ function main(): void {
 
   const frame = (): Promise<void> => {
     if (!cfg || stopped) return Promise.resolve();
+    // A picture is still on its way to the display: wait for it rather than draw one that cannot be sent (a moving screen counts its steps by pictures).
+    if (drawing) return Promise.resolve();
     const now = Date.now();
     if (now >= refreshAt && !drawing) {
       refreshAt = now + REFRESH_MS;
@@ -340,8 +350,11 @@ function main(): void {
   };
 
   /** Draws a frame and schedules the next one: busy screens (the mascot's pulse) ask for a faster beat. */
+  /** Which run of the drawing loop is current: a key press starts a new one, and the old one ends at its next turn. */
+  let loop = 0;
   const tick = (): void => {
     if (stopped) return;
+    const mine = loop;
     const began = Date.now();
     let drawn: Promise<void>;
     try {
@@ -352,7 +365,7 @@ function main(): void {
     }
     // The next picture is asked for when this one has gone out, so a slow bar is never flooded.
     drawn.then(() => {
-      if (stopped) return;
+      if (stopped || mine !== loop) return;
       let wait = TICK_MS;
       if (cfg) {
         const s = byId(current);
@@ -361,6 +374,14 @@ function main(): void {
       const left = wait - (Date.now() - began);
       tickTimer = setTimeout(tick, left > 0 ? left : 0) as unknown as number;
     });
+  };
+
+  /** A key was pressed: draw at once and go on at the screen's own pace (a moving screen asks for a fast one). */
+  const kick = (): void => {
+    if (stopped) return;
+    loop++;
+    if (tickTimer !== undefined) clearTimeout(tickTimer);
+    tick();
   };
 
   const poll = (): void => {
@@ -385,7 +406,7 @@ function main(): void {
         // The screens' settings come with every answer from the Mac.
         if (cfg && next.meta && next.meta.settings) {
           cfg = { ...cfg, s: mergeSettings(cfg.s, next.meta.settings) };
-          enabled = ALL.filter((s) => isOn(s, cfg as Config));
+          enabled = chosen(cfg as Config);
         }
         // The settings page on the Mac saved the bar's own settings: read them again.
         const rev = next.meta ? next.meta.settingsRev : 0;
@@ -405,7 +426,7 @@ function main(): void {
   /** Asks the agent to do something on the Mac, then fetches the state at once. */
   const control = (action: string): void => {
     if (!cfg) return;
-    fetch(`http://${cfg.host}:${cfg.port}/control?t=${encodeURIComponent(cfg.token)}`, { method: "POST", body: JSON.stringify({ action }) })
+    fetch(`http://${cfg.host}:${cfg.port}/control`, { method: "POST", body: JSON.stringify({ action }) })
       .then(() => {
         if (pollTimer !== undefined) clearTimeout(pollTimer);
         pollTimer = setTimeout(poll, 600) as unknown as number;
@@ -436,46 +457,52 @@ function main(): void {
         // The screen's name stays for a moment, unless the setting says 0.
         flashUntil = cfg.s.appFlashMs > 0 ? now + cfg.s.appFlashMs : 0;
         banner = null;
-        frame();
+        kick();
       }
     } else if (event.key === "ok" && event.action === "short") {
       // OK steps through the sub-views of the current screen (Claude: window / day and week, ...).
       lastInputAt = now;
       const screen = byId(current);
       const count = screen.views ? screen.views(makeCtx(now)) : 1;
-      const agents = data.agents ? data.agents.list : [];
-      if (current === "claude" && agents.length > 1) {
-        // Several AI agents run: OK switches between them, and the screen names the one it shows.
-        const next = nextAgent(agents, pickAgent(cfg, agents, agentPick));
-        agentPick = next.id;
-        show(status("p", next.name, agentIndex(agents, next.id) + " / " + agents.length), 900);
-        frame();
-      } else if (count > 1) {
+      if (count > 1) {
         views[current] = ((views[current] || 0) + 1) % count;
+        // A new state starts afresh: no details, the first meeting.
+        extras[current] = 0;
         banner = null;
-        frame();
+        // The agents screen goes round the agents and ends with the mascot; with several agents the name is shown.
+        if (current === "claude") {
+          const agents = data.agents ? data.agents.list : [];
+          const pages = aiPages(cfg, agents);
+          const page = views[current];
+          if (page < pages.agents && agents.length > 1) {
+            const shownAgent = orderedAgents(cfg, agents)[page];
+            show(status("p", shownAgent.name, agentIndex(agents, shownAgent.id) + " / " + agents.length), 900);
+          }
+        }
+        kick();
       }
     } else if (event.key === "start" && event.action === "short") {
-      // The big central button (Start / Pause): on the music screen it plays or pauses (if the setting is on);
-      // on the servers screen, as a list, it turns the page.
+      // The big central button (Start / Pause) is for a screen's extra functions: on the music screen it plays or pauses
+      // (if the setting is on), on the servers screen it walks through the details of the servers, on the calendar it shows the next meeting.
+      // (The wheel changes the screen, OK changes the state of a screen.)
       lastInputAt = now;
       if (current === "music" && cfg.s.musicStartToggle) {
         // The Mac does it; the new state comes with the next poll.
         control("toggle-play-pause");
-      } else if (current === "servers" && cfg.s.serversView === "list") {
-        const count = byId(current).views ? (byId(current).views as (c: Ctx) => number)(makeCtx(now)) : 1;
-        if (count > 1) {
-          views[current] = ((views[current] || 0) + 1) % count;
-          banner = null;
-          frame();
-        }
+      } else if (byId(current).start) {
+        // An extra function of the screen (the calendar: the next meeting).
+        const r = (byId(current).start as (c: Ctx) => { view?: number; extra?: number })(makeCtx(now));
+        if (r.view !== undefined) views[current] = r.view;
+        if (r.extra !== undefined) extras[current] = r.extra;
+        banner = null;
+        kick();
       }
     }
   });
 
   const apply = (c: Config): void => {
     cfg = c;
-    enabled = ALL.filter((s) => isOn(s, c));
+    enabled = chosen(c);
     rotateAt = Date.now() + c.s.appRotateSeconds * 1000;
     needClear = true;
   };
@@ -483,7 +510,7 @@ function main(): void {
   function reload(): void {
     loadConfig()
       .then((c) => {
-        const same = cfg !== null && cfg.host === c.host && cfg.port === c.port && cfg.token === c.token;
+        const same = cfg !== null && cfg.host === c.host && cfg.port === c.port;
         // The screens' settings are not the bar's own: they stay as the Mac last sent them.
         if (cfg) c.s = cfg.s;
         apply(c);

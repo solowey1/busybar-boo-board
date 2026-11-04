@@ -6,6 +6,10 @@ import { fileURLToPath } from "node:url";
 import { publicConfig, RESERVED_HOSTNAMES } from "./config.mjs";
 import * as bar from "./bar.mjs";
 import { localizedGroups } from "./appsettings.mjs";
+import { isBar } from "./trust.mjs";
+
+/** What the bar may ask for without a token: it is known by its address. */
+const BAR_PATHS = new Set(["/state", "/control"]);
 
 const PARTS = new Set(["music", "claude", "work", "calendar", "servers", "agents", "meta"]);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -75,7 +79,8 @@ export function createApi({ hub, app, log = () => {} }) {
       }
     }
     const config = app.getConfig();
-    if (!sameToken(req.headers["x-token"] ?? url.searchParams.get("t"), config.token)) return send(res, 401, { error: "unauthorized" });
+    const known = sameToken(req.headers["x-token"] ?? url.searchParams.get("t"), config.token) || (BAR_PATHS.has(url.pathname) && (await isBar(req, config.bar?.host)));
+    if (!known) return send(res, 401, { error: "unauthorized" });
 
     try {
       if (req.method === "GET" && url.pathname === "/state") {

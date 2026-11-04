@@ -117,7 +117,8 @@ const L = {
     screenSub: 'Настройки экрана хранятся на Mac и приходят на бар вместе с данными.', showScreen: 'Показывать экран', showScreenOn: 'Это настройка самого приложения на баре.', showScreenOff: 'Бар не отвечает: настройка недоступна.', byDefault: 'По умолчанию',
     generalSub: 'Подключение к бару, язык и то, как приложение выглядит на Mac.', barWarn: 'Бар не отвечает{e}. Настройки приложения на баре станут доступны после подключения.',
     bar: 'Бар', barAddr: 'Адрес бара', barAddrD: 'IP из веб-интерфейса бара', barPass: 'Пароль HTTP API', passSaved: 'Сохранён. Оставьте пустым, чтобы не менять.', passNone: 'Не задан.', password: 'пароль',
-    bound: 'Приложение на баре ищет этот Mac по адресу {a}', boundOk: 'IP, порт и токен уже записаны в настройки приложения.', boundNo: 'Записать IP, порт и токен в настройки приложения.', bind: 'Привязать',
+    bound: 'Приложение на баре ищет этот Mac по адресу {a}', boundOk: 'IP и порт уже записаны в настройки приложения.', boundNo: 'Записать IP и порт в настройки приложения.', bind: 'Привязать',
+    orderTitle: 'Порядок экранов', orderD: 'В таком порядке экраны идут по колесу и вкладки на этой странице.', moveUp: 'Выше', moveDown: 'Ниже',
     language: 'Язык', languageD: 'Приложение целиком: бар, эта страница, меню в строке меню и уведомления. Применяется сразу.',
     mac: 'Приложение на Mac', login: 'Запускать при входе в систему', loginNoTray: 'Приложение в строке меню не запущено: запустите его, чтобы менять это.', loginOn: 'Включён: приложение откроется само после входа.', loginAsk: 'Нужно подтвердить: Системные настройки → Основные → Объекты входа.', loginOff: 'Выключен. Приложение можно убрать из «Объектов входа» и в Системных настройках.',
     showIcon: 'Показывать значок приложения', showIconD: 'Применяется сразу после сохранения.', iconTray: 'Только в строке меню', iconDock: 'Только в Доке', iconBoth: 'В строке меню и в Доке', iconNone: 'Нигде',
@@ -139,7 +140,8 @@ const L = {
     screenSub: "The screen's settings are kept on the Mac and reach the bar with the data.", showScreen: 'Show the screen', showScreenOn: "This is a setting of the app on the bar itself.", showScreenOff: 'The bar is not answering: the setting is unavailable.', byDefault: 'Default',
     generalSub: 'Connection to the bar, language and how the app looks on the Mac.', barWarn: 'The bar is not answering{e}. The settings of the app on the bar will be available once it connects.',
     bar: 'Bar', barAddr: "Bar's address", barAddrD: "The IP from the bar's web interface", barPass: 'HTTP API password', passSaved: 'Saved. Leave empty to keep it.', passNone: 'Not set.', password: 'password',
-    bound: 'The app on the bar looks for this Mac at {a}', boundOk: "The IP, port and token are already in the app's settings.", boundNo: "Write the IP, port and token into the app's settings.", bind: 'Bind',
+    bound: 'The app on the bar looks for this Mac at {a}', boundOk: "The IP and port are already in the app's settings.", boundNo: "Write the IP and port into the app's settings.", bind: 'Bind',
+    orderTitle: 'Screen order', orderD: 'The screens go round the wheel in this order, and so do the tabs on this page.', moveUp: 'Move up', moveDown: 'Move down',
     language: 'Language', languageD: 'The whole app: the bar, this page, the menu-bar menu and the notifications. Applied at once.',
     mac: 'App on this Mac', login: 'Start at login', loginNoTray: 'The menu-bar app is not running: start it to change this.', loginOn: 'On: the app opens by itself after you log in.', loginAsk: 'Needs your approval: System Settings → General → Login Items.', loginOff: 'Off. You can also remove the app from Login Items in System Settings.',
     showIcon: "Show the app's icon", showIconD: 'Applied right after saving.', iconTray: 'Menu bar only', iconDock: 'Dock only', iconBoth: 'Menu bar and Dock', iconNone: 'Nowhere',
@@ -207,9 +209,12 @@ function glyphSvg(name, color, size = 22) {
 // ---- tabs ------------------------------------------------------------------------------------
 const SCREENS = { music: 'screen_music', ai: 'screen_ai', work: 'screen_work', calendar: 'screen_calendar', servers: 'screen_servers' };
 const TAB_COLOR = { music: '#8e8e93', ai: '#d97757', work: '#4da3ff', calendar: '#ff3b30', servers: '#3ddc84' };
+// The screens go round the wheel in this order; the settings call the agents screen "ai", the bar app "claude".
+const ORDER_IDS = { music: 'music', claude: 'ai', servers: 'servers', calendar: 'calendar', work: 'work' };
+function orderIds() { return (sets.app.order || '').split(',').map(x => ORDER_IDS[x]).filter(Boolean); }
 function tabs() {
   const list = [{ id: 'general', title: t('general') }, { sep: 1 }];
-  D.groups.filter(g => g.id !== 'app').forEach(g => list.push({ id: g.id, title: g.label }));
+  orderIds().forEach(id => { const g = D.groups.find(x => x.id === id); if (g) list.push({ id: g.id, title: g.label }); });
   list.push({ sep: 1 }, { id: 'app', title: t('app') });
   return list;
 }
@@ -240,7 +245,7 @@ function screenToggle(gid) {
   return `<div class="row"><div class="t">${t('showScreen')}<div class="d">${D.bar.online ? t('showScreenOn') : t('showScreenOff')}</div></div><label class="sw"><input type="checkbox" data-b="${key}" ${bar[key] ? 'checked' : ''} ${D.bar.online ? '' : 'disabled'}><i></i></label></div>`;
 }
 function groupCard(g) {
-  return `<div class="card">${screenToggle(g.id)}${Object.entries(g.fields).map(([k, f]) => fieldRow(g.id, k, f)).join('')}</div>`;
+  return `<div class="card">${screenToggle(g.id)}${Object.entries(g.fields).filter(([, f]) => !f.hidden).map(([k, f]) => fieldRow(g.id, k, f)).join('')}</div>`;
 }
 function bindFields() {
   document.querySelectorAll('[data-f]').forEach(el => {
@@ -352,7 +357,7 @@ const reserved = n => (D.reserved || []).includes(String(n).toLowerCase());
 function general() {
   const online = D.bar.online;
   const link = D.link;
-  const linked = bar.agent_host === link.host && bar.agent_port === link.port && bar.agent_token === link.token;
+  const linked = bar.agent_host === link.host && bar.agent_port === link.port;
   const langField = D.schema.fields.lang;
   const url = D.aliasUrl || `http://127.0.0.1:${link.port}/ui`;
   const name = agent.uiHostname;
@@ -364,6 +369,10 @@ function general() {
     <div class="row"><div class="t">${dot(linked)}${t('bound', { a: esc(link.host) + ':' + link.port })}<div class="d">${linked ? t('boundOk') : t('boundNo')}</div></div><button class="btn ghost small" id="link" ${online ? '' : 'disabled'}>${icon('link')} ${t('bind')}</button></div>
     <div class="row"><div class="t">${t('language')}<div class="d">${t('languageD')}</div></div><select id="lang">${langField.options.map(o => `<option value="${o.value}" ${agent.lang === o.value ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select></div>
   </div>
+  <h3>${t('orderTitle')}</h3><div class="card">
+    <div class="note" style="padding-bottom:0">${t('orderD')}</div>
+    ${orderIds().map((id, i, all) => `<div class="row"><div class="t">${esc(D.groups.find(x => x.id === id).label)}</div><div style="display:flex;gap:4px"><button class="btn ghost small" data-oup="${i}" ${i === 0 ? 'disabled' : ''} title="${esc(t('moveUp'))}">${icon('chevron-up')}</button><button class="btn ghost small" data-odown="${i}" ${i === all.length - 1 ? 'disabled' : ''} title="${esc(t('moveDown'))}">${icon('chevron-down')}</button></div></div>`).join('')}
+  </div>
   <h3>${t('mac')}</h3><div class="card">
     <div class="row"><div class="t">${dot(S?.tray?.running)}${t('login')}<div class="d">${loginNote()}</div></div><label class="sw"><input type="checkbox" id="login" ${agent.launchAtLogin ? 'checked' : ''}><i></i></label></div>
     <div class="row"><div class="t">${t('showIcon')}<div class="d">${t('showIconD')}</div></div><select id="appIcon">${Object.entries(APP_ICON).map(([k, v]) => `<option value="${k}" ${agent.appIcon === k ? 'selected' : ''}>${t(v)}</option>`).join('')}</select></div>
@@ -374,8 +383,18 @@ function general() {
   <h3>${t('trayIcon')}</h3><div class="card"><div class="opts">${Object.keys(TRAY).map(k => `<label class="${agent.trayIcon === k ? 'on' : ''}"><input type="radio" name="icon" value="${k}" ${agent.trayIcon === k ? 'checked' : ''}>${ghostSvg(k)}${t(TRAY_NAME[k])}</label>`).join('')}</div>
   <div class="note">${t('trayNote')}</div></div>`;
 }
+function moveScreen(i, delta) {
+  const ids = (sets.app.order || '').split(',');
+  const j = i + delta;
+  if (j < 0 || j >= ids.length) return;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  sets.app.order = ids.join(',');
+  touch(); draw();
+}
 function bindGeneral() {
   const h = $('#barHost'); if (!h) return;
+  document.querySelectorAll('[data-oup]').forEach(b => b.onclick = () => moveScreen(Number(b.dataset.oup), -1));
+  document.querySelectorAll('[data-odown]').forEach(b => b.onclick = () => moveScreen(Number(b.dataset.odown), 1));
   h.oninput = () => { agent.bar.host = h.value; touch(); };
   $('#barPass').oninput = e => { agent.bar.password = e.target.value; touch(); };
   document.querySelectorAll('input[name=icon]').forEach(r => r.onchange = () => { agent.trayIcon = r.value; touch(); draw(); });
@@ -395,7 +414,7 @@ function bindGeneral() {
   $('#lang').onchange = async e => { agent.lang = e.target.value; bar.lang = e.target.value; lang = agent.lang; await saveAll(); };
   const copy = $('#copyLink');
   if (copy) copy.onclick = async () => { const f = $('#tokenLink'); f.select(); try { await navigator.clipboard.writeText(f.value); } catch { document.execCommand('copy'); } say(t('copied')); };
-  $('#link').onclick = () => { bar.agent_host = D.link.host; bar.agent_port = D.link.port; bar.agent_token = D.link.token; touch(); draw(); };
+  $('#link').onclick = () => { bar.agent_host = D.link.host; bar.agent_port = D.link.port; touch(); draw(); };
 }
 
 // ---- page ------------------------------------------------------------------------------------

@@ -6,7 +6,7 @@ export function startServers({ hub, log, servers, getLang = () => "ru", interval
     hub.set("servers", { items: [] });
     return { stop() {}, latest: () => [] };
   }
-  // `ms` is kept for the settings page, which shows the latency.
+  // `ms` is the latency, for the settings page.
   const check = async ({ name, url, icon, color, downColor }) => {
     const t0 = Date.now();
     try {
@@ -17,6 +17,16 @@ export function startServers({ hub, log, servers, getLang = () => "ru", interval
     }
   };
   let previous = new Map();
+  /** When each server last changed between up and down (ms), for the card's "up for 3h". */
+  const since = new Map();
+  const hostOf = (url) => {
+    try {
+      return new URL(url).host;
+    } catch {
+      return "";
+    }
+  };
+  const urls = new Map(servers.map((sv) => [sv.name, hostOf(sv.url)]));
   let latest = [];
   const tick = async () => {
     const items = await Promise.all(servers.map(check));
@@ -24,10 +34,13 @@ export function startServers({ hub, log, servers, getLang = () => "ru", interval
       const was = previous.get(it.name);
       if (was === true && !it.ok) hub.alert("server_down", t(getLang(), "serverDown", { name: it.name }));
       if (was === false && it.ok) hub.alert("server_up", t(getLang(), "serverUp", { name: it.name }));
+      if (was !== it.ok) since.set(it.name, Date.now());
       previous.set(it.name, it.ok);
     }
-    // Latency jitter must not bump the revision: only up/down is published.
-    hub.set("servers", { items: items.map(({ name, ok, icon, color, downColor }) => ({ name, ok, icon, color, downColor })) });
+    // `host` and `age` (minutes in the present state) are for the server's card on the bar; the revision moves once a minute with `age`.
+    hub.set("servers", {
+      items: items.map(({ name, ok, icon, color, downColor }) => ({ name, ok, icon, color, downColor, host: urls.get(name) ?? "", age: Math.floor((Date.now() - (since.get(name) ?? Date.now())) / 60_000) })),
+    });
     latest = items;
   };
   void tick().catch((e) => log(`servers: ${e.message}`));

@@ -247,11 +247,13 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func sendEvents() {
         calendarState = "ok"
         let now = Date()
-        let predicate = store.predicateForEvents(withStart: now.addingTimeInterval(-60), end: now.addingTimeInterval(24 * 3600), calendars: nil)
+        // From the start of today (the grid counts the day's finished meetings too) to five weeks ahead.
+        let from = Calendar.current.startOfDay(for: now)
+        let predicate = store.predicateForEvents(withStart: from, end: now.addingTimeInterval(35 * 24 * 3600), calendars: nil)
         let events = store.events(matching: predicate)
-            .filter { !$0.isAllDay && $0.endDate > now && $0.status != .canceled }
+            .filter { !$0.isAllDay && $0.status != .canceled }
             .sorted { $0.startDate < $1.startDate }
-            .prefix(10)
+            .prefix(300)
             .map { e -> [String: Any] in
                 ["title": e.title ?? "", "start": Int(e.startDate.timeIntervalSince1970), "end": Int(e.endDate.timeIntervalSince1970), "calendar": e.calendar.title]
             }

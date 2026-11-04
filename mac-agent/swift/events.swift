@@ -2,8 +2,8 @@ import EventKit
 import Foundation
 
 // Prints the upcoming (non all-day) calendar events as JSON: [{"title","start","end","calendar"}]
-// Usage: events [hoursAhead]   (default 24)
-let hours = Double(CommandLine.arguments.dropFirst().first ?? "24") ?? 24
+// Usage: events [hoursAhead]   (default 840: five weeks; the list starts at the beginning of today)
+let hours = Double(CommandLine.arguments.dropFirst().first ?? "840") ?? 840
 let store = EKEventStore()
 let sem = DispatchSemaphore(value: 0)
 var granted = false
@@ -22,11 +22,11 @@ guard granted else {
 
 let now = Date()
 let end = now.addingTimeInterval(hours * 3600)
-let predicate = store.predicateForEvents(withStart: now.addingTimeInterval(-60), end: end, calendars: nil)
+let predicate = store.predicateForEvents(withStart: Calendar.current.startOfDay(for: now), end: end, calendars: nil)
 let events = store.events(matching: predicate)
-    .filter { !$0.isAllDay && $0.endDate > now && $0.status != .canceled }
+    .filter { !$0.isAllDay && $0.status != .canceled }
     .sorted { $0.startDate < $1.startDate }
-    .prefix(10)
+    .prefix(300)
     .map { e -> [String: Any] in
         ["title": e.title ?? "", "start": Int(e.startDate.timeIntervalSince1970), "end": Int(e.endDate.timeIntervalSince1970), "calendar": e.calendar.title]
     }

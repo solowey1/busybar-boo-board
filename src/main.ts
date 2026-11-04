@@ -8,7 +8,7 @@ import { music } from "./screens/music";
 import { servers } from "./screens/servers";
 import { work } from "./screens/work";
 import type { AgentAlert, AgentState, Config, Ctx, El, Screen, ScreenId } from "./types";
-import { AMBER, BLUE, DIM, GREEN, RED, WHITE, label } from "./util";
+import { AMBER, BLUE, BRAND, DIM, RED, WHITE, label } from "./util";
 
 /** The name the app draws under; the device clears elements by this id. */
 const APP = manifest.id;
@@ -16,7 +16,8 @@ const APP = manifest.id;
 const ALL: Screen[] = [music, claude, work, calendar, servers];
 const POLL_MS = 3000;
 const POLL_OFFLINE_MS = 10000;
-const TICK_MS = 1000;
+// Twice a second: the mascot moves on every half second; unchanged elements are not sent again.
+const TICK_MS = 500;
 const ALERT_MS = 9000;
 const FLASH_MS = 1200;
 /** After the wheel or OK is used, the automatic rotation waits this long. */
@@ -38,7 +39,7 @@ const byId = (id: ScreenId): Screen => ALL.filter((s) => s.id === id)[0];
 
 function alertColor(kind: string): string {
   if (kind.indexOf("down") >= 0) return RED;
-  if (kind.indexOf("claude") === 0) return GREEN;
+  if (kind.indexOf("claude") === 0) return BRAND;
   if (kind.indexOf("calendar") === 0) return AMBER;
   return BLUE;
 }
@@ -63,6 +64,7 @@ function main(): void {
   let gotFirst = false;
   let banner: Banner | null = null;
   let flashUntil = 0;
+  let danceUntil = 0;
   let lastInputAt = 0;
   let rotateAt = 0;
   let stopped = false;
@@ -84,7 +86,7 @@ function main(): void {
     return ids;
   };
 
-  const makeCtx = (now: number): Ctx => ({ cfg: cfg as Config, data, at: now, recvAt, online, view: views[current] || 0 });
+  const makeCtx = (now: number): Ctx => ({ cfg: cfg as Config, data, at: now, recvAt, online, view: views[current] || 0, danceUntil });
 
   /** The screens the wheel goes through: the enabled ones, minus the empty ones when that is asked for. */
   const visible = (ctx: Ctx): Screen[] => {
@@ -110,7 +112,11 @@ function main(): void {
     show([label("a.h", header, 0, { color, scroll_rate: 0 }), label("a.t", text, 8, { color: WHITE, scroll_rate: 1500 })], ALERT_MS, { sound: SOUND_REMINDER, led: color });
   };
 
-  const showAlert = (a: AgentAlert): void => showText(alertHeader(a.kind), a.text, alertColor(a.kind));
+  const showAlert = (a: AgentAlert): void => {
+    // Claude is done: the mascot dances once the pop-up is gone.
+    if (a.kind.indexOf("claude") === 0) danceUntil = Date.now() + ALERT_MS + 8000;
+    showText(alertHeader(a.kind), a.text, alertColor(a.kind));
+  };
 
   /** Pop-ups that the bar works out itself from the data it already has. */
   const localAlerts = (ctx: Ctx): void => {

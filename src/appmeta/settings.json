@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "version": 2,
+  "version": 4,
   "fields": {
     "screens": {
       "type": "group",
@@ -51,6 +51,18 @@
           "min": 10,
           "max": 100,
           "step": 10
+        }
+      }
+    },
+    "claude": {
+      "type": "group",
+      "label": "Claude",
+      "fields": {
+        "claude_mascot": {
+          "type": "boolean",
+          "label": "Маскот",
+          "description": "Слева: работает, танцует, когда Claude закончил, спит, когда давно ничего нет",
+          "default": true
         }
       }
     },

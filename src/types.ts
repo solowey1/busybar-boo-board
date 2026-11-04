@@ -13,6 +13,10 @@ export interface ClaudeData {
   active: boolean;
   blockTokens: number;
   blockMessages: number;
+  /** what the window would cost at API prices, USD */
+  blockCost: number;
+  /** epoch seconds of the latest message, 0 = none */
+  lastAt: number;
   today: number;
   week: number;
   resetIn: number;
@@ -21,6 +25,8 @@ export interface WorkData {
   active: boolean;
   todaySec: number;
   sessionSec: number;
+  /** total of the previous day, seconds */
+  yesterdaySec: number;
   /** epoch seconds of the first activity today, 0 = none yet */
   since: number;
 }
@@ -61,6 +67,7 @@ export interface Config {
   artworkOpacity: number;
   rotateSeconds: number;
   hideEmpty: boolean;
+  claudeMascot: boolean;
 }
 
 /** A display element as the device API takes it. */
@@ -75,6 +82,8 @@ export interface Ctx {
   online: boolean;
   /** Which sub-view of the screen is shown; the OK button steps through them. */
   view: number;
+  /** The mascot dances until this time (ms), after Claude finished. */
+  danceUntil: number;
 }
 
 export interface Screen {

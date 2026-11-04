@@ -14,6 +14,7 @@ const DEFAULTS: Config = {
   artworkOpacity: 100,
   rotateSeconds: 0,
   hideEmpty: false,
+  claudeMascot: true,
 };
 
 /** Settings arrive grouped; the values may be nested or flat depending on firmware, so look through groups. */
@@ -55,6 +56,7 @@ export async function loadConfig(): Promise<Config> {
       artworkOpacity: num(v.artwork_opacity, 100),
       rotateSeconds: num(v.rotate_seconds, 0),
       hideEmpty: bool(v.hide_empty, false),
+      claudeMascot: bool(v.claude_mascot, true),
     };
   } catch (err) {
     console.error(`${manifest.id}: settings: ${err instanceof Error ? err.message : String(err)}`);

@@ -1,5 +1,7 @@
 import type { El } from "./types";
 
+export { tr } from "./i18n";
+
 export const WHITE = "#FFFFFFFF";
 export const DIM = "#FFFFFF80";
 export const FAINT = "#FFFFFF30";
@@ -10,7 +12,25 @@ export const BLUE = "#40A0FFFF";
 export const YELLOW = "#FFD000FF";
 /** Claude's brand orange, and a slightly darker one that sets text apart from the mascot. */
 export const BRAND = "#D97757FF";
-export const BRAND_DARK = "#BC6446FF";
+/** Text next to the mascot is lighter than the mascot itself, so the two stay apart. */
+export const BRAND_TEXT = "#F2AE92FF";
+/** A grey lighter than DIM, for secondary figures. */
+export const DIM_LIGHT = "#FFFFFFB0";
+
+/** "#RRGGBB" and an alpha byte as hex -> "#RRGGBBAA", the form the device takes. */
+export const rgba = (hex: string, alpha: string = "FF"): string => hex.slice(0, 7).toUpperCase() + alpha;
+
+/** Mixes a "#RRGGBB" colour with `with` ("#RRGGBB"); `f` of 0 keeps it, 1 gives `with`. */
+export function mix(hex: string, f: number, withHex: string = "#FFFFFF"): string {
+  let out = "#";
+  for (let i = 1; i < 7; i += 2) {
+    const a = parseInt(hex.slice(i, i + 2), 16);
+    const b = parseInt(withHex.slice(i, i + 2), 16);
+    const v = Math.round(a + (b - a) * f);
+    out += (v < 16 ? "0" : "") + v.toString(16);
+  }
+  return out.toUpperCase();
+}
 
 const pad2 = (n: number) => (n < 10 ? "0" + n : String(n));
 
@@ -45,6 +65,23 @@ export function label(id: string, text: string, y: number, o: Partial<El> = {}):
     scroll_repeat_delay: 2500,
     ...o,
   };
+}
+
+/** Two lines centred on the screen: a title and a status, e.g. "Календарь" / "Доступа нет". */
+export function status(id: string, title: string, text: string, titleColor: string = WHITE, textColor: string = DIM): El[] {
+  const mid = { align: "top_mid", x: 36, width: undefined, scroll_rate: 0 };
+  return [label(id + ".1", title, 0, { color: titleColor, ...mid }), label(id + ".2", text, 8, { color: textColor, ...mid })];
+}
+
+/**
+ * A text centred in the strip [x, x + width). A text too long for the strip starts at its left edge and
+ * is scrolled by the firmware instead.
+ */
+export function centered(id: string, text: string, y: number, x: number, width: number, anchor: "top" | "bottom", o: Partial<El> = {}): El {
+  const fits = text.length * 4.5 <= width;
+  return fits
+    ? label(id, text, y, { align: anchor + "_mid", x: x + Math.floor(width / 2), width: undefined, scroll_rate: 0, ...o })
+    : label(id, text, y, { align: anchor + "_left", x, width, ...o });
 }
 
 /** A filled bar `w` pixels wide. */

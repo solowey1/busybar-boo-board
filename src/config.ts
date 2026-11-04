@@ -1,23 +1,42 @@
 import manifest from "./appmeta/manifest.json";
-import type { Config, ScreenId } from "./types";
+import type { AppSettings, Config, ScreenId } from "./types";
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  musicArtwork: true,
+  musicArtworkOpacity: 100,
+  musicStateIcon: false,
+  musicStartToggle: false,
+  musicColor: "#FFFFFF",
+  aiMascot: "claude",
+  aiOverlay: false,
+  aiMascotScreen: false,
+  aiDefaultAgent: "auto",
+  aiColor: "#D97757",
+  workHours: 0,
+  workBreakMinutes: 0,
+  workColor: "#4DA3FF",
+  calendarMinutes: 5,
+  calendarColor: "#FF3B30",
+  serversView: "tiles",
+  serversColorOk: "#3DDC84",
+  serversColorDown: "#FF3030",
+  serversTileDown: "#6A6A6A",
+  appRotateSeconds: 0,
+  appHideEmpty: false,
+  appFlashMs: 700,
+  appAlertSound: true,
+};
 
 const DEFAULTS: Config = {
-  screens: { music: true, claude: true, work: true, calendar: true, servers: true },
+  screens: { music: true, claude: true, mascot: true, work: true, calendar: true, servers: true },
+  lang: "ru",
   host: "192.168.1.35",
   port: 8787,
   token: "",
-  alertSound: true,
-  calendarMinutes: 5,
-  workHours: 0,
-  breakMinutes: 0,
-  musicArtwork: true,
-  artworkOpacity: 100,
-  rotateSeconds: 0,
-  hideEmpty: false,
-  claudeMascot: true,
+  s: DEFAULT_SETTINGS,
 };
 
-/** Settings arrive grouped; the values may be nested or flat depending on firmware, so look through groups. */
+/** Settings may arrive nested or flat depending on firmware, so look through groups. */
 function flatten(source: unknown, out: Record<string, unknown> = {}): Record<string, unknown> {
   if (source === null || typeof source !== "object") return out;
   for (const key of Object.keys(source as Record<string, unknown>)) {
@@ -32,7 +51,19 @@ const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
 const num = (v: unknown, d: number) => (typeof v === "number" && isFinite(v) ? v : d);
 const str = (v: unknown, d: string) => (typeof v === "string" ? v : d);
 
-/** Reads the app settings from the device; falls back to the defaults when unavailable. */
+/** The agent's values over the defaults; anything of the wrong type is ignored. */
+export function mergeSettings(base: AppSettings, from: Partial<AppSettings> | undefined): AppSettings {
+  if (!from) return base;
+  const out: Record<string, unknown> = {};
+  (Object.keys(base) as (keyof AppSettings)[]).forEach((k) => {
+    const d = base[k];
+    const v = from[k];
+    out[k] = typeof d === "boolean" ? bool(v, d) : typeof d === "number" ? num(v, d) : str(v, d as string);
+  });
+  return out as unknown as AppSettings;
+}
+
+/** Reads the app's settings from the device; falls back to the defaults when unavailable. */
 export async function loadConfig(): Promise<Config> {
   try {
     const res = await fetch(`http://localhost/api/apps/settings?app_id=${manifest.id}`);
@@ -41,22 +72,16 @@ export async function loadConfig(): Promise<Config> {
     const v = flatten(doc.values ?? doc);
     const screens = {} as Record<ScreenId, boolean>;
     (Object.keys(DEFAULTS.screens) as ScreenId[]).forEach((id) => {
-      screens[id] = bool(v[`screen_${id}`], true);
+      // The setting says "ai" where the code says "claude".
+      screens[id] = bool(v[`screen_${id === "claude" ? "ai" : id}`], true);
     });
     return {
       screens,
+      lang: v.lang === "en" ? "en" : "ru",
       host: str(v.agent_host, DEFAULTS.host),
       port: num(v.agent_port, DEFAULTS.port),
       token: str(v.agent_token, ""),
-      alertSound: bool(v.alert_sound, true),
-      calendarMinutes: num(v.calendar_minutes, DEFAULTS.calendarMinutes),
-      workHours: num(v.work_hours, 0),
-      breakMinutes: num(v.break_minutes, 0),
-      musicArtwork: bool(v.music_artwork, true),
-      artworkOpacity: num(v.artwork_opacity, 100),
-      rotateSeconds: num(v.rotate_seconds, 0),
-      hideEmpty: bool(v.hide_empty, false),
-      claudeMascot: bool(v.claude_mascot, true),
+      s: DEFAULT_SETTINGS,
     };
   } catch (err) {
     console.error(`${manifest.id}: settings: ${err instanceof Error ? err.message : String(err)}`);

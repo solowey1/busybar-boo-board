@@ -1,0 +1,93 @@
+import type { Config, Lang } from "./types";
+
+type Dict = Record<string, string>;
+
+const RU: Dict = {
+  music: "Музыка",
+  ai: "AI",
+  mascot: "Маскот",
+  work: "Работа",
+  calendar: "Календарь",
+  servers: "Серверы",
+  noMusic: "Нет музыки",
+  noData: "Нет данных",
+  noAccess: "Доступа нет",
+  noEvents: "Встреч нет",
+  notSet: "Не заданы",
+  online: "В сети",
+  offline: "Недоступен",
+  allOnline: "Все в сети",
+  down: "Не отвечают",
+  yesterday: "Вчера",
+  today: "Сегодня",
+  since: "С",
+  streak: "подряд",
+  notStarted: "Не начато",
+  week: "Неделя",
+  month: "Месяц",
+  inTime: "через",
+  nowEnds: "идёт, ещё",
+  noWindow: "нет окна",
+  working: "работает",
+  waitingIdle: "ждёт",
+  runningFor: "запущен {n} мин",
+  macDown: "Mac не отвечает",
+  noScreens: "Нет экранов",
+  meeting: "Встреча",
+  notice: "Уведомление",
+  server: "Сервер",
+  done: "Готово",
+  waiting: "Ждёт",
+  workGoal: "Уже {n} ч за день",
+  breakNow: "Уже {n} мин за Mac, пора размяться",
+  breakTitle: "Перерыв",
+};
+
+const EN: Dict = {
+  music: "Music",
+  ai: "AI",
+  mascot: "Mascot",
+  work: "Work",
+  calendar: "Calendar",
+  servers: "Servers",
+  noMusic: "No music",
+  noData: "No data",
+  noAccess: "No access",
+  noEvents: "No events",
+  notSet: "None set",
+  online: "Online",
+  offline: "Offline",
+  allOnline: "All online",
+  down: "Not responding",
+  yesterday: "Yesterday",
+  today: "Today",
+  since: "Since",
+  streak: "streak",
+  notStarted: "Not started",
+  week: "Week",
+  month: "Month",
+  inTime: "in",
+  nowEnds: "now, ends in",
+  noWindow: "no window",
+  working: "working",
+  waitingIdle: "idle",
+  runningFor: "up {n} min",
+  macDown: "Mac not responding",
+  noScreens: "No screens",
+  meeting: "Meeting",
+  notice: "Notice",
+  server: "Server",
+  done: "Done",
+  waiting: "Waiting",
+  workGoal: "{n} h today already",
+  breakNow: "{n} min at the Mac, time to stretch",
+  breakTitle: "Break",
+};
+
+const DICTS: Record<Lang, Dict> = { ru: RU, en: EN };
+
+/** A phrase in the app's language; `{n}` is replaced by `n`. */
+export function tr(cfg: Pick<Config, "lang">, key: string, n?: number | string): string {
+  const text = DICTS[cfg.lang][key] || RU[key] || key;
+  return n === undefined ? text : text.replace("{n}", String(n));
+}

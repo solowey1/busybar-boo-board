@@ -27,6 +27,8 @@ export interface WorkData {
   sessionSec: number;
   /** total of the previous day, seconds */
   yesterdaySec: number;
+  /** the last 34 finished days, oldest first, seconds */
+  recent?: number[];
   /** epoch seconds of the first activity today, 0 = none yet */
   since: number;
 }
@@ -34,14 +36,67 @@ export interface CalendarData {
   ok: boolean;
   events: { title: string; startIn: number; endIn: number }[];
 }
+export interface ServerItem {
+  name: string;
+  ok: boolean;
+  /** a name from glyphs.json */
+  icon?: string;
+  /** "#RRGGBB" or "" for the default */
+  color?: string;
+  downColor?: string;
+}
 export interface ServersData {
-  items: { name: string; ok: boolean }[];
+  items: ServerItem[];
+}
+/** An AI coding agent found running on the computer. */
+export interface AgentInfo {
+  id: string;
+  name: string;
+  busy: boolean;
+  /** minutes since it started, 0 when only a hook told of it */
+  up: number;
+}
+export interface AgentsData {
+  list: AgentInfo[];
 }
 export interface AgentAlert {
   id: number;
   kind: string;
   text: string;
 }
+
+/** The settings of the screens, kept on the Mac and sent to the bar flat (see mac-agent/src/appsettings.mjs). */
+export interface AppSettings {
+  musicArtwork: boolean;
+  musicArtworkOpacity: number;
+  musicStateIcon: boolean;
+  /** the central Start / Pause button plays or pauses */
+  musicStartToggle: boolean;
+  musicColor: string;
+  /** "claude", "ghost" or "none" */
+  aiMascot: "claude" | "ghost" | "none";
+  aiOverlay: boolean;
+  /** a separate screen with only the mascot */
+  aiMascotScreen: boolean;
+  /** "auto" or the id of an agent */
+  aiDefaultAgent: string;
+  aiColor: string;
+  workHours: number;
+  workBreakMinutes: number;
+  workColor: string;
+  calendarMinutes: number;
+  calendarColor: string;
+  serversView: "tiles" | "list";
+  serversColorOk: string;
+  serversColorDown: string;
+  serversTileDown: string;
+  appRotateSeconds: number;
+  appHideEmpty: boolean;
+  /** how long the screen's name stays after the wheel; 0 = not shown */
+  appFlashMs: number;
+  appAlertSound: boolean;
+}
+
 export interface AgentState {
   rev: number;
   music?: MusicData;
@@ -49,25 +104,24 @@ export interface AgentState {
   work?: WorkData;
   calendar?: CalendarData;
   servers?: ServersData;
+  agents?: AgentsData;
+  /** bumped when the settings page on the Mac saved something; `settings` are the values of the screens */
+  meta?: { settingsRev: number; settings?: Partial<AppSettings> };
   alerts: AgentAlert[];
 }
 
-export type ScreenId = "music" | "claude" | "work" | "calendar" | "servers";
+export type ScreenId = "music" | "claude" | "mascot" | "work" | "calendar" | "servers";
+export type Lang = "ru" | "en";
 
 export interface Config {
+  /** which screens are on: set on the bar itself */
   screens: Record<ScreenId, boolean>;
+  lang: Lang;
   host: string;
   port: number;
   token: string;
-  alertSound: boolean;
-  calendarMinutes: number;
-  workHours: number;
-  breakMinutes: number;
-  musicArtwork: boolean;
-  artworkOpacity: number;
-  rotateSeconds: number;
-  hideEmpty: boolean;
-  claudeMascot: boolean;
+  /** everything else, from the Mac; the defaults hold until the first answer */
+  s: AppSettings;
 }
 
 /** A display element as the device API takes it. */
@@ -82,16 +136,24 @@ export interface Ctx {
   online: boolean;
   /** Which sub-view of the screen is shown; the OK button steps through them. */
   view: number;
-  /** The mascot dances until this time (ms), after Claude finished. */
+  /** The mascot dances until this time (ms), after an AI has finished. */
   danceUntil: number;
+  /** An AI has just finished and the screen shows it next to the mascot, instead of a banner over everything. */
+  done: { until: number; head: string; text: string; other: boolean } | null;
+  /** The agent the user picked with OK, "" = none picked. */
+  agentPick: string;
 }
 
 export interface Screen {
   id: ScreenId;
-  title: string;
+  title(cfg: Config): string;
   /** How many sub-views the OK button cycles through (default 1). */
   views?(ctx: Ctx): number;
   /** True when there is nothing to show; such a screen can be hidden by a setting. */
   isEmpty?(ctx: Ctx): boolean;
   elements(ctx: Ctx): El[];
+  /** How often the screen wants to be drawn again, in ms; the default is every third of a second. */
+  tickMs?(ctx: Ctx): number;
+  /** The screen is no longer on the display: let go of whatever it keeps between frames. */
+  leave?(): void;
 }

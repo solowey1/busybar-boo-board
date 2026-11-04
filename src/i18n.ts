@@ -4,9 +4,8 @@ type Dict = Record<string, string>;
 
 const RU: Dict = {
   music: "Музыка",
-  ai: "AI",
-  mascot: "Маскот",
-  work: "Работа",
+  ai: "Агенты",
+  work: "Время работы",
   calendar: "Календарь",
   servers: "Серверы",
   noMusic: "Нет музыки",
@@ -41,13 +40,15 @@ const RU: Dict = {
   workGoal: "Уже {n} ч за день",
   breakNow: "Уже {n} мин за Mac, пора размяться",
   breakTitle: "Перерыв",
+  ageUnits: "м,ч,д",
+  wd: "Пн,Вт,Ср,Чт,Пт,Сб,Вс",
+  mon: "янв,фев,мар,апр,мая,июн,июл,авг,сен,окт,ноя,дек",
 };
 
 const EN: Dict = {
   music: "Music",
-  ai: "AI",
-  mascot: "Mascot",
-  work: "Work",
+  ai: "Agents",
+  work: "Work time",
   calendar: "Calendar",
   servers: "Servers",
   noMusic: "No music",
@@ -82,6 +83,9 @@ const EN: Dict = {
   workGoal: "{n} h today already",
   breakNow: "{n} min at the Mac, time to stretch",
   breakTitle: "Break",
+  ageUnits: "m,h,d",
+  wd: "Mo,Tu,We,Th,Fr,Sa,Su",
+  mon: "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",
 };
 
 const DICTS: Record<Lang, Dict> = { ru: RU, en: EN };

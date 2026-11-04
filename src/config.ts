@@ -9,14 +9,16 @@ export const DEFAULT_SETTINGS: AppSettings = {
   musicColor: "#FFFFFF",
   aiMascot: "claude",
   aiOverlay: false,
-  aiMascotScreen: false,
+  aiMascotScreen: true,
   aiDefaultAgent: "auto",
   aiColor: "#D97757",
   workHours: 0,
   workBreakMinutes: 0,
   workColor: "#4DA3FF",
+  workView: "grid",
   calendarMinutes: 5,
   calendarColor: "#FF3B30",
+  calendarView: "weeks3",
   serversView: "tiles",
   serversColorOk: "#3DDC84",
   serversColorDown: "#FF3030",
@@ -25,14 +27,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
   appHideEmpty: false,
   appFlashMs: 700,
   appAlertSound: true,
+  appOrder: "music,claude,servers,calendar,work",
 };
 
 const DEFAULTS: Config = {
-  screens: { music: true, claude: true, mascot: true, work: true, calendar: true, servers: true },
-  lang: "ru",
+  screens: { music: true, claude: true, work: true, calendar: true, servers: true },
+  lang: "en",
   host: "192.168.1.35",
   port: 8787,
-  token: "",
   s: DEFAULT_SETTINGS,
 };
 
@@ -77,10 +79,9 @@ export async function loadConfig(): Promise<Config> {
     });
     return {
       screens,
-      lang: v.lang === "en" ? "en" : "ru",
+      lang: v.lang === "ru" ? "ru" : "en",
       host: str(v.agent_host, DEFAULTS.host),
       port: num(v.agent_port, DEFAULTS.port),
-      token: str(v.agent_token, ""),
       s: DEFAULT_SETTINGS,
     };
   } catch (err) {

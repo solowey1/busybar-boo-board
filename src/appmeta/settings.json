@@ -4,8 +4,8 @@
   "fields": {
     "lang": {
       "type": "enum",
-      "label": "Язык / Language",
-      "default": "ru",
+      "label": "Language",
+      "default": "en",
       "options": [
         {
           "value": "ru",
@@ -19,49 +19,41 @@
     },
     "agent_host": {
       "type": "string",
-      "label": "IP Mac / Mac IP",
-      "description": "Адрес Mac в сети / The Mac's address on the network",
+      "label": "IP",
+      "description": "The address of the Mac that runs the agent",
       "default": "192.168.1.35",
       "max_length": 64
     },
     "agent_port": {
       "type": "integer",
-      "label": "Порт / Port",
+      "label": "Port",
       "default": 8787,
       "min": 1024,
       "max": 65535
     },
-    "agent_token": {
-      "type": "string",
-      "label": "Токен / Token",
-      "description": "Заполняется со страницы настроек на Mac / Filled in from the settings page on the Mac",
-      "default": "",
-      "max_length": 64,
-      "sensitive": true
-    },
     "screen_music": {
       "type": "boolean",
-      "label": "Музыка / Music",
+      "label": "Music",
       "default": true
     },
     "screen_ai": {
       "type": "boolean",
-      "label": "AI",
-      "default": true
-    },
-    "screen_work": {
-      "type": "boolean",
-      "label": "Работа / Work",
-      "default": true
-    },
-    "screen_calendar": {
-      "type": "boolean",
-      "label": "Календарь / Calendar",
+      "label": "Agents",
       "default": true
     },
     "screen_servers": {
       "type": "boolean",
-      "label": "Серверы / Servers",
+      "label": "Servers",
+      "default": true
+    },
+    "screen_calendar": {
+      "type": "boolean",
+      "label": "Calendar",
+      "default": true
+    },
+    "screen_work": {
+      "type": "boolean",
+      "label": "Work time",
       "default": true
     }
   }

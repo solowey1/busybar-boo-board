@@ -1,13 +1,10 @@
 import { mascot } from "../mascot";
-import type { Mood, Style } from "../mascot";
-import { anyBusy, pickAgent } from "../agents";
-import type { AgentInfo, Ctx, El, Screen } from "../types";
+import { aiPages, orderedAgents } from "../agents";
+import { agentsOf, moodOf, styleOf } from "./moods";
+import { mascotTickMs, mascotView, releaseMascot } from "./mascot";
+import type { AgentInfo, El, Screen } from "../types";
 import { DIM, DIM_LIGHT, FAINT, WHITE, bar, centered, fmtTokens, label, mix, progressLine, rgba, tr } from "../util";
 
-/** Claude counts as busy this long after its last message. */
-const BUSY_S = 90;
-/** ... and as asleep after this long without one. */
-const SLEEP_S = 600;
 /** The 5-hour window the usage is counted in. */
 const WINDOW_S = 5 * 3600;
 
@@ -32,28 +29,6 @@ function fmtLeft(sec: number): string {
   return Math.floor(m / 60) + ":" + (mm < 10 ? "0" + mm : mm);
 }
 
-/** Claude has its own mascot; the ghost is the choice, and also what other AIs get when they report. */
-export function styleOf(ctx: Ctx): Style {
-  if (ctx.cfg.s.aiMascot === "ghost") return "ghost";
-  return ctx.done !== null && ctx.at < ctx.done.until && ctx.done.other ? "ghost" : "claude";
-}
-
-/** The agents found running on the computer (none if the agent on the Mac is too old to say). */
-export const agentsOf = (ctx: Ctx): AgentInfo[] => (ctx.data.agents ? ctx.data.agents.list : []);
-
-export function moodOf(ctx: Ctx): Mood {
-  if (ctx.at < ctx.danceUntil || (ctx.done !== null && ctx.at < ctx.done.until)) return "dance";
-  // Live detection: busy at once when any agent works, asleep when none runs.
-  if (ctx.data.agents) {
-    const list = ctx.data.agents.list;
-    return anyBusy(list) ? "work" : list.length > 0 ? "idle" : "sleep";
-  }
-  const c = ctx.data.claude;
-  if (!c || !c.lastAt) return "sleep";
-  const idle = Math.floor(ctx.at / 1000) - c.lastAt;
-  return idle < BUSY_S ? "work" : idle > SLEEP_S ? "sleep" : "idle";
-}
-
 // The small font's letters start two pixels below the top of the label. Aligning the label's bottom edge
 // instead puts the capitals of row 1 on pixels 1-5 and of row 2 on 8-12, leaving the bottom line some air.
 /** Position (1-based) of an agent in the list. */
@@ -74,9 +49,20 @@ const right = (id: string, text: string, y: number, color: string): El => label(
 export const claude: Screen = {
   id: "claude",
   title: (cfg) => tr(cfg, "ai"),
+  /** One page per agent, then the mascot (when the setting allows): OK steps through them. */
+  views: (ctx) => aiPages(ctx.cfg, agentsOf(ctx)).total,
+  tickMs: (ctx) => {
+    const p = aiPages(ctx.cfg, agentsOf(ctx));
+    return p.mascot && ctx.view % p.total === p.agents ? mascotTickMs(ctx) : 333;
+  },
+  leave: releaseMascot,
   isEmpty: ({ data }) => !(data.agents && data.agents.list.length > 0) && (!data.claude || !data.claude.active),
   elements(ctx) {
     const { cfg, data, at, recvAt, done } = ctx;
+    const pages = aiPages(cfg, agentsOf(ctx));
+    const page = ctx.view % pages.total;
+    if (pages.mascot && page === pages.agents) return mascotView(ctx);
+    releaseMascot();
     const c = data.claude;
     // The accent colour is the mascot's; with the mascot, text takes a lighter tint so the two can be told apart.
     const accent = cfg.s.aiColor;
@@ -93,8 +79,9 @@ export const claude: Screen = {
     }
     // Another agent than Claude: no usage figures (they come from Claude's logs), its state and how long it runs.
     const list = agentsOf(ctx);
-    const id = pickAgent(cfg, list, ctx.agentPick);
-    const agent = list.filter((a) => a.id === id)[0];
+    const shown = orderedAgents(cfg, list)[page];
+    const id = shown ? shown.id : "";
+    const agent = shown;
     if (agent && id !== "claude") {
       els.push(text("a.name", agent.name, x, ROW1, tint));
       els.push(right("a.state", agent.busy ? tr(cfg, "working") : tr(cfg, "waitingIdle"), ROW1, agent.busy ? WHITE : DIM_LIGHT));

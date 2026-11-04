@@ -118,7 +118,12 @@ const L = {
     generalSub: 'Подключение к бару, язык и то, как приложение выглядит на Mac.', barWarn: 'Бар не отвечает{e}. Настройки приложения на баре станут доступны после подключения.',
     bar: 'Бар', barAddr: 'Адрес бара', barAddrD: 'IP из веб-интерфейса бара', barPass: 'Пароль HTTP API', passSaved: 'Сохранён. Оставьте пустым, чтобы не менять.', passNone: 'Не задан.', password: 'пароль',
     bound: 'Приложение на баре ищет этот Mac по адресу {a}', boundOk: 'IP и порт уже записаны в настройки приложения.', boundNo: 'Записать IP и порт в настройки приложения.', bind: 'Привязать',
-    orderTitle: 'Порядок экранов', orderD: 'В таком порядке экраны идут по колесу и вкладки на этой странице.', moveUp: 'Выше', moveDown: 'Ниже',
+    instrTitle: 'Этого экрана нет на баре', instrLead: 'Экран ставится отдельным приложением «{name}» или целиком, приложением «Busybar status» со всеми экранами (колесо между экранами и уведомления поверх любого экрана работают только в нём).',
+    instrStep1: 'Скачайте файл {file} со <a href="{url}" target="_blank" rel="noopener">страницы релизов</a>. В пакете агента он лежит в папке <code>apps</code>, без номера версии в имени.',
+    instrStep2: 'Поставьте его на бар: {cmd} (или любым другим способом установки приложений BUSY).',
+    instrStep3: 'Вернитесь сюда и нажмите «Отменить»: вкладка получит настройки экрана, а общие (язык, IP, порт) запишутся в новое приложение при сохранении.',
+    instrAll: 'Или приложение со всеми экранами: файл {file}, ставится так же.',
+    orderTitle: 'Порядок экранов', orderD: 'В таком порядке экраны идут по колесу приложения со всеми экранами и вкладки на этой странице.', moveUp: 'Выше', moveDown: 'Ниже',
     language: 'Язык', languageD: 'Приложение целиком: бар, эта страница, меню в строке меню и уведомления. Применяется сразу.',
     mac: 'Приложение на Mac', login: 'Запускать при входе в систему', loginNoTray: 'Приложение в строке меню не запущено: запустите его, чтобы менять это.', loginOn: 'Включён: приложение откроется само после входа.', loginAsk: 'Нужно подтвердить: Системные настройки → Основные → Объекты входа.', loginOff: 'Выключен. Приложение можно убрать из «Объектов входа» и в Системных настройках.',
     showIcon: 'Показывать значок приложения', showIconD: 'Применяется сразу после сохранения.', iconTray: 'Только в строке меню', iconDock: 'Только в Доке', iconBoth: 'В строке меню и в Доке', iconNone: 'Нигде',
@@ -141,7 +146,12 @@ const L = {
     generalSub: 'Connection to the bar, language and how the app looks on the Mac.', barWarn: 'The bar is not answering{e}. The settings of the app on the bar will be available once it connects.',
     bar: 'Bar', barAddr: "Bar's address", barAddrD: "The IP from the bar's web interface", barPass: 'HTTP API password', passSaved: 'Saved. Leave empty to keep it.', passNone: 'Not set.', password: 'password',
     bound: 'The app on the bar looks for this Mac at {a}', boundOk: "The IP and port are already in the app's settings.", boundNo: "Write the IP and port into the app's settings.", bind: 'Bind',
-    orderTitle: 'Screen order', orderD: 'The screens go round the wheel in this order, and so do the tabs on this page.', moveUp: 'Move up', moveDown: 'Move down',
+    instrTitle: 'This screen is not on the bar', instrLead: 'The screen comes as an app of its own, "{name}", or all together in the "Busybar status" app (the wheel between the screens and the notices over any screen work only there).',
+    instrStep1: 'Download the file {file} from the <a href="{url}" target="_blank" rel="noopener">releases page</a>. In the agent\'s package it is in the <code>apps</code> folder, without the version in its name.',
+    instrStep2: 'Install it on the bar: {cmd} (or any other way of installing BUSY apps).',
+    instrStep3: 'Come back and press "Discard": the tab will get the screen\'s settings, and the common ones (language, IP, port) are written to the new app when you save.',
+    instrAll: 'Or the app with all the screens: the file {file}, installed the same way.',
+    orderTitle: 'Screen order', orderD: 'The screens go round the wheel of the app with all the screens in this order, and so do the tabs on this page.', moveUp: 'Move up', moveDown: 'Move down',
     language: 'Language', languageD: 'The whole app: the bar, this page, the menu-bar menu and the notifications. Applied at once.',
     mac: 'App on this Mac', login: 'Start at login', loginNoTray: 'The menu-bar app is not running: start it to change this.', loginOn: 'On: the app opens by itself after you log in.', loginAsk: 'Needs your approval: System Settings → General → Login Items.', loginOff: 'Off. You can also remove the app from Login Items in System Settings.',
     showIcon: "Show the app's icon", showIconD: 'Applied right after saving.', iconTray: 'Menu bar only', iconDock: 'Dock only', iconBoth: 'Menu bar and Dock', iconNone: 'Nowhere',
@@ -241,8 +251,21 @@ function fieldRow(gid, key, f) {
 }
 function screenToggle(gid) {
   const key = SCREENS[gid];
-  if (!key) return '';
+  // Only the app with all the screens has a switch for each; a module is the screen.
+  if (!key || !(D.bar.doc && key in (D.bar.doc.values || {}))) return '';
   return `<div class="row"><div class="t">${t('showScreen')}<div class="d">${D.bar.online ? t('showScreenOn') : t('showScreenOff')}</div></div><label class="sw"><input type="checkbox" data-b="${key}" ${bar[key] ? 'checked' : ''} ${D.bar.online ? '' : 'disabled'}><i></i></label></div>`;
+}
+/** A screen whose app is not on the bar: how to put it there, instead of its settings. */
+function installCard(g) {
+  const m = D.install.modules.find(x => x.group === g.id);
+  const host = agent.bar.host || '<bar IP>';
+  const cmd = `<code>npx busy-cli app install ${esc(m.file)} --addr ${esc(host)} --password &lt;${esc(t('barPass').toLowerCase())}&gt;</code>`;
+  return `<h2>${esc(g.label)}</h2><div class="card"><div class="row" style="display:block"><div class="t"><b>${t('instrTitle')}</b></div><p class="d" style="font-size:13px">${t('instrLead', { name: esc(m.name) })}</p>
+    <ol style="margin:8px 0 4px 18px;padding:0;line-height:1.7">
+      <li>${t('instrStep1', { file: `<code>${esc(m.file)}</code>`, url: D.install.releases })}</li>
+      <li>${t('instrStep2', { cmd })}</li>
+      <li>${t('instrStep3')}</li>
+    </ol><p class="d" style="font-size:13px">${t('instrAll', { file: `<code>${esc(D.install.combined.file)}</code>` })}</p></div></div>`;
 }
 function groupCard(g) {
   return `<div class="card">${screenToggle(g.id)}${Object.entries(g.fields).filter(([, f]) => !f.hidden).map(([k, f]) => fieldRow(g.id, k, f)).join('')}</div>`;
@@ -429,6 +452,7 @@ function draw() {
   drawNav();
   const g = D.groups.find(x => x.id === tab);
   if (tab === 'general' || !g) $('#main').innerHTML = general();
+  else if (D.modules && D.modules[g.id] === false) $('#main').innerHTML = installCard(g);
   else $('#main').innerHTML = `<h2>${esc(g.label)}</h2><p class="sub">${t('screenSub')}</p>${groupCard(g)}${extras(tab)}`;
   bindFields(); bindExtras(); bindGeneral();
 }

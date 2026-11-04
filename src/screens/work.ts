@@ -1,7 +1,13 @@
-import type { Screen } from "../types";
-import { BLUE, DIM, GREEN, WHITE, fmtHM, label, progressLine } from "../util";
+import type { El, Screen } from "../types";
+import { BLUE, DIM, GREEN, WHITE, YELLOW, fmtHM, label, progressLine } from "../util";
 
 const pad2 = (n: number) => (n < 10 ? "0" + n : String(n));
+
+/** A label on the left and a value that ends at the right edge. */
+const row = (id: string, name: string, value: string, y: number, nameColor: string, valueColor: string): El[] => [
+  label(id + ".n", name, y, { color: nameColor, scroll_rate: 0, width: 44 }),
+  label(id + ".v", value, y, { color: valueColor, scroll_rate: 0, width: undefined, align: "top_right", x: 72 }),
+];
 
 export const work: Screen = {
   id: "work",
@@ -22,8 +28,9 @@ export const work: Screen = {
       ];
     }
     const els = [
-      label("w.t1", w.active ? "Сегодня, идёт" : "Сегодня, пауза", 0, { color: w.active ? GREEN : DIM, scroll_rate: 0 }),
-      label("w.t2", fmtHM(today), 8, { color: WHITE, scroll_rate: 0 }),
+      ...row("w.y", "Вчера", fmtHM(w.yesterdaySec ?? 0), 0, DIM, DIM),
+      // Green while the Mac is in use, yellow while it rests.
+      ...row("w.t", "Сегодня", fmtHM(today), 8, w.active ? GREEN : YELLOW, WHITE),
     ];
     // With a daily goal set, a line shows how far along it is.
     return cfg.workHours > 0 ? els.concat(progressLine("w.p", 0, 72, today / (cfg.workHours * 3600), BLUE)) : els;

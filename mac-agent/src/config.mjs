@@ -35,7 +35,8 @@ const DEFAULTS = {
   // Where the app shows itself: "tray", "dock", "both" or "none" (then only the browser address opens the settings).
   appIcon: "tray",
   // A friendly name for the settings page, published on the local network: "status" gives http://status.local:PORT/ui
-  uiHostname: "",
+  // The settings page answers at http://boo.local, unless another name is chosen.
+  uiHostname: "boo",
   // The language of the whole app: the settings page, the menu-bar app, the bar, the notifications.
   lang: "en",
 };

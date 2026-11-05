@@ -1,8 +1,8 @@
 {
-  "name": "@busybar-status/agents",
+  "name": "@boo-board/agents",
   "private": true,
   "version": "0.2.0",
-  "description": "The agents screen of Busybar status: AI usage, the running agents and a mascot.",
+  "description": "The agents screen of Boo Board: AI usage, the running agents and a mascot.",
   "author": "solowey1",
   "type": "module",
   "scripts": {

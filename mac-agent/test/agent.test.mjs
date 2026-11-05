@@ -400,8 +400,8 @@ test("servers: the bar gets the address and how many minutes each has been up or
 
 test("bar: finds which of our apps are installed and writes the common settings to each, keeping what is its own", async () => {
   const docs = {
-    "app.solowey.busybar-status": { version: 7, values: { lang: "ru", agent_host: "1.1.1.1", agent_port: 8787, screen_music: true, screen_work: false } },
-    "app.solowey.status-music": { version: 1, values: { lang: "en", agent_host: "2.2.2.2", agent_port: 9000 } },
+    "app.solowey.boo-board": { version: 7, values: { lang: "ru", agent_host: "1.1.1.1", agent_port: 8787, screen_music: true, screen_work: false } },
+    "app.solowey.boo-music": { version: 1, values: { lang: "en", agent_host: "2.2.2.2", agent_port: 9000 } },
   };
   const web = createServer((req, res) => {
     const url = new URL(req.url, "http://x");
@@ -421,16 +421,16 @@ test("bar: finds which of our apps are installed and writes the common settings 
   try {
     const apps = await barApi.installedApps(bar);
     assert.equal(apps.combined, true);
-    assert.deepEqual(apps.ids, ["app.solowey.busybar-status", "app.solowey.status-music"]);
+    assert.deepEqual(apps.ids, ["app.solowey.boo-board", "app.solowey.boo-music"]);
     // the combined app has every screen; a screen with no app of its own is covered by it
     assert.deepEqual(Object.values(apps.screens), [true, true, true, true, true]);
     await barApi.putEverywhere(bar, { lang: "ru", agent_host: "3.3.3.3", agent_port: 8787, screen_work: true, nonsense: 1 }, apps.ids);
-    assert.deepEqual(docs["app.solowey.busybar-status"].values, { lang: "ru", agent_host: "3.3.3.3", agent_port: 8787, screen_music: true, screen_work: true });
+    assert.deepEqual(docs["app.solowey.boo-board"].values, { lang: "ru", agent_host: "3.3.3.3", agent_port: 8787, screen_music: true, screen_work: true });
     // the module has no screen switches and no unknown keys appear in it
-    assert.deepEqual(docs["app.solowey.status-music"].values, { lang: "ru", agent_host: "3.3.3.3", agent_port: 8787 });
-    assert.equal(docs["app.solowey.status-music"].version, 1);
+    assert.deepEqual(docs["app.solowey.boo-music"].values, { lang: "ru", agent_host: "3.3.3.3", agent_port: 8787 });
+    assert.equal(docs["app.solowey.boo-music"].version, 1);
     // without the combined app only the modules count
-    delete docs["app.solowey.busybar-status"];
+    delete docs["app.solowey.boo-board"];
     const only = await barApi.installedApps(bar);
     assert.deepEqual(only.screens, { music: true, ai: false, servers: false, calendar: false, work: false });
   } finally {

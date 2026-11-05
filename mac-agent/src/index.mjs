@@ -163,7 +163,7 @@ setInterval(welcomeNewApps, 30_000).unref();
 
 const server = createApi({ hub, app, log });
 server.listen(config.port, config.host, () => {
-  log(`busybar-status agent on ${config.host}:${config.port}`);
+  log(`boo-board agent on ${config.host}:${config.port}`);
   // Without a menu-bar app (Windows, Linux, a plain run) the start script asks for the page to open.
   // The address holds the token, so it is shown only then, in the console, and never written to a log file.
   if (process.env.BUSYBAR_OPEN === "1") {

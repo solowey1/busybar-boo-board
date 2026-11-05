@@ -1,4 +1,4 @@
-# Busybar status
+# Boo Board
 
 [Русская версия](README.ru.md)
 
@@ -43,7 +43,7 @@ Prebuilt packages for macOS, Windows and Linux are attached to every [release](h
 
 | Tab | Settings |
 |---|---|
-| General | the bar's address and password, **Bind**; **language of the whole app** (the bar, this page, the menu-bar menu, notifications; applied at once; the first start takes the system's language, Russian or else English); **the order of the screens** (the wheel and the tabs follow it); start at login; show the app in the Dock / menu bar / both / neither; a `.local` name for this page (not `busybar`: that is the bar's own name); the look of the menu-bar icon |
+| General | the bar's address and password, **Bind**; **language of the whole app** (the bar, this page, the menu-bar menu, notifications; applied at once; the first start takes the system's language, Russian or else English); **the order of the screens** (the wheel and the tabs follow it); start at login; show the app in the Dock / menu bar / both / neither; a `.local` name for this page (`boo` by default, so `http://boo.local`; not `busybar`: that is the bar's own name); the look of the menu-bar icon |
 | Music | cover and its opacity; play/pause icon (green, yellow on pause); the big **Start / Pause** button plays / pauses; accent colour (paused: half transparent) |
 | Agents | mascot: Claude, ghost or none; **the mascot page** (the last page after the agents when you press OK; there is no separate screen for it on the wheel); the **default agent** (the ghost is also what other AIs get when they report); **cover other screens when an AI finishes** (off by default: then only the sound and the LED tell, and the news waits on the AI screen); accent colour |
 | Work time | the view to start with (heat map or yesterday and today); reminder after N hours; break reminder every N minutes; how many days to keep (30); idle time that counts as a pause; accent colour; the activity squares |
@@ -86,12 +86,12 @@ The repository is a monorepo that builds several apps for the bar from the same 
 
 | App | id | What it is |
 |---|---|---|
-| **Busybar status** | `app.solowey.busybar-status` | all the screens in one: the wheel goes round them, in the order you set, and a meeting, a server going down or an AI finishing pops up over any screen |
-| Status: Music | `app.solowey.status-music` | the music screen alone |
-| Status: Agents | `app.solowey.status-agents` | the agents screen (usage, the agents, the mascot page) alone |
-| Status: Servers | `app.solowey.status-servers` | the servers screen alone |
-| Status: Calendar | `app.solowey.status-calendar` | the calendar screen alone |
-| Status: Work time | `app.solowey.status-work` | the work-time screen alone |
+| **Boo Board** | `app.solowey.boo-board` | all the screens in one: the wheel goes round them, in the order you set, and a meeting, a server going down or an AI finishing pops up over any screen |
+| Boo: Music | `app.solowey.boo-music` | the music screen alone |
+| Boo: Agents | `app.solowey.boo-agents` | the agents screen (usage, the agents, the mascot page) alone |
+| Boo: Servers | `app.solowey.boo-servers` | the servers screen alone |
+| Boo: Calendar | `app.solowey.boo-calendar` | the calendar screen alone |
+| Boo: Work time | `app.solowey.boo-work` | the work-time screen alone |
 
 Install the one with all the screens, or any of the single screens (`npm run app:install -w apps/music -- --addr <bar ip> --password <password>`, or the `.tgz` from a release with `busy-cli app install`). The bar runs one app at a time, so single screens are opened from the bar's apps menu and have no wheel between them, and each shows only the news of its own screen; in return each is small (its code only) and asks the agent only for its own data. The settings page on the Mac knows which screens are on the bar: the tab of a screen that is not there shows how to install it instead of its settings. The common settings (language, the Mac's IP and port) are written to every app of ours on the bar when you save, and to a new one once it appears.
 
@@ -99,11 +99,11 @@ A measurement on the bar (firmware 1.3.1): the app with all the screens ran thro
 
 ## Packages
 
-Each release has `busybar-status-<version>-<system>` archives for `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64` and `win-x64`. Every one carries its own Node and, in an `apps` folder, the `.tgz` of every app for the bar.
+Each release has `boo-board-<version>-<system>` archives for `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64` and `win-x64`. Every one carries its own Node and, in an `apps` folder, the `.tgz` of every app for the bar.
 
 | System | What you get | Not available |
 |---|---|---|
-| macOS | `Busybar status.app` with the menu-bar icon (ad-hoc signed, not notarised: open it with right click → Open the first time) | – |
+| macOS | `Boo Board.app` with the menu-bar icon (ad-hoc signed, not notarised: open it with right click → Open the first time) | – |
 | Windows, Linux | the agent and `start.cmd` / `start.sh`, which start it and open the settings page | menu-bar app, now-playing, calendar; work time needs `xprintidle` or GNOME on Linux |
 
 The packages are built by GitHub Actions (`.github/workflows/release.yml`), not by hand: pushing a version tag builds one on a runner of each system and attaches them to the release. To try the build without a tag, run the workflow from the Actions tab ("Run workflow"); the packages come as artifacts of the run. The Windows and Linux packages have not been run on those systems by the author. (`node mac-agent/tools/package.mjs <system>` is what the workflow runs; macOS packages need a Mac.)
@@ -126,11 +126,11 @@ npm run typecheck             # every app for the bar
 npm run build                 # every app -> apps/*/dist/*.tgz
 npm run versions              # all apps have the version of package.json
 npm test                      # the agent: 30 tests
-node mac-agent/tools/icons.mjs appmeta apps/status/src/appmeta   # redraws the ghost icons of the app with all the screens
+node mac-agent/tools/icons.mjs appmeta apps/board/src/appmeta   # redraws the ghost icons of the app with all the screens
 node mac-agent/tools/icons.mjs modules apps                     # the icons of the single-screen apps: a picture and the screen's colour each
 ```
 
-`packages/core/src/` is the code of the bar apps (TypeScript, strict, runs in the firmware's JerryScript, not Node: the engine, the screens, the texts) and `apps/<name>/` is one app each: a `main.ts` that names its screens, its `appmeta/` (manifest, settings, icons) and, for the agents screen, the pulse animation. Heaps are 192 KiB (all the screens) and 128 KiB (a single screen); screens keep their buffers only while they are on the display, and running out of heap stops the app and can restart the whole bar (it did during the measurement, below 112 KiB), so keep per-frame allocations small. `mac-agent/` is the agent: `src/` sources, `ui/` the settings page, `tray/` the menu-bar app (Swift), `tools/` icons and packaging. The mascot page's wave is a native bar animation, `apps/{status,agents}/src/animations/pulse.anim`, written by `node mac-agent/tools/anim.mjs pulse` (the `.anim` format, "bicycle1", is described in the [firmware's `anim_file_format.h`](https://github.com/busy-app/busybar-firmware/blob/dev/lib/anim_file/anim_file_format.h); the writer uses BGRA8888 raw frames, which the bar plays; BGR888 it did not). The firmware loops it by itself, so the app sends the element once. Server tile icons are 9×9 LED versions of [Lucide](https://lucide.dev) icons (ISC licence), made by `mac-agent/tools/glyphs/raster.py` into `packages/core/src/glyphs.json` (one 81-character string per icon); the buttons on the settings page use Lucide icons too. Read `AGENTS.md` before changing the bar app.
+`packages/core/src/` is the code of the bar apps (TypeScript, strict, runs in the firmware's JerryScript, not Node: the engine, the screens, the texts) and `apps/<name>/` is one app each: a `main.ts` that names its screens, its `appmeta/` (manifest, settings, icons) and, for the agents screen, the pulse animation. Heaps are 192 KiB (all the screens) and 128 KiB (a single screen); screens keep their buffers only while they are on the display, and running out of heap stops the app and can restart the whole bar (it did during the measurement, below 112 KiB), so keep per-frame allocations small. `mac-agent/` is the agent: `src/` sources, `ui/` the settings page, `tray/` the menu-bar app (Swift), `tools/` icons and packaging. The mascot page's wave is a native bar animation, `apps/{board,agents}/src/animations/pulse.anim`, written by `node mac-agent/tools/anim.mjs pulse` (the `.anim` format, "bicycle1", is described in the [firmware's `anim_file_format.h`](https://github.com/busy-app/busybar-firmware/blob/dev/lib/anim_file/anim_file_format.h); the writer uses BGRA8888 raw frames, which the bar plays; BGR888 it did not). The firmware loops it by itself, so the app sends the element once. Server tile icons are 9×9 LED versions of [Lucide](https://lucide.dev) icons (ISC licence), made by `mac-agent/tools/glyphs/raster.py` into `packages/core/src/glyphs.json` (one 81-character string per icon); the buttons on the settings page use Lucide icons too. Read `AGENTS.md` before changing the bar app.
 
 ## BUSY app template reference
 
@@ -140,12 +140,12 @@ node mac-agent/tools/icons.mjs modules apps                     # the icons of t
 
 ```sh
 npm install
-npm run build         # build the app into dist/app.solowey.busybar-status.tgz
+npm run build         # build the app into dist/app.solowey.boo-board.tgz
 npm run app:install   # install it on the BUSY Bar connected over USB
 npm run app:run       # launch the installed app
 ```
 
-The app's id is `app.solowey.busybar-status`, set in `src/appmeta/manifest.json`. An id is `<namespace>.<app>`, at most 32 characters, made of Latin letters, digits, underscores, dashes, and dots, and not starting with a dot. If yours still says `app.example`, change it to your own namespace before publishing.
+The app's id is `app.solowey.boo-board`, set in `src/appmeta/manifest.json`. An id is `<namespace>.<app>`, at most 32 characters, made of Latin letters, digits, underscores, dashes, and dots, and not starting with a dot. If yours still says `app.example`, change it to your own namespace before publishing.
 
 ## Layout
 
@@ -199,8 +199,8 @@ Use `short` as the default action for a button press: it fires once, after a nor
 
 | Command | Description |
 | --- | --- |
-| `npm run build` | empties `dist/` and builds the package into `dist/app.solowey.busybar-status.tgz` |
-| `npm run build -- --emit dir` | leaves the `app.solowey.busybar-status/` folder instead of the `.tgz` |
+| `npm run build` | empties `dist/` and builds the package into `dist/app.solowey.boo-board.tgz` |
+| `npm run build -- --emit dir` | leaves the `app.solowey.boo-board/` folder instead of the `.tgz` |
 | `npm run build -- --emit both` | leaves the folder and the `.tgz` |
 | `npm run build -- --out <path>` | builds into `<path>` instead, replacing only this app's package there |
 | `npm run build -- --tgz-name <name>` | names the `.tgz`, e.g. `"{id}-{version}.tgz"` |
@@ -208,7 +208,7 @@ Use `short` as the default action for a button press: it fires once, after a nor
 | `npm run build -- --bundle` | inlines every module into one `main.js` |
 | `npm run build -- --addr <host>` | sets the BUSY Bar address the app connects to, `localhost` by default |
 | `npm run typecheck` | type-checks the app |
-| `npm run app:install` | installs `dist/app.solowey.busybar-status.tgz` on the BUSY Bar; build it first with `npm run build` |
+| `npm run app:install` | installs `dist/app.solowey.boo-board.tgz` on the BUSY Bar; build it first with `npm run build` |
 | `npm run app:uninstall` | removes the app from the BUSY Bar, keeping its settings |
 | `npm run app:run` | launches the installed app |
 | `npm run app:stop` | quits the running app |
@@ -226,17 +226,17 @@ The package folder is named after the app id:
 
 ```
 dist/
-└── app.solowey.busybar-status/
+└── app.solowey.boo-board/
     ├── appmeta/manifest.json
     ├── scripts/main.js
     └── images/ animations/ sounds/ resources/
 ```
 
-By default the build packs that folder into `dist/app.solowey.busybar-status.tgz`, with the folder itself at the root of the archive, and removes the folder; `--emit dir` keeps only the folder, `--emit both` keeps both. `--tgz-name` gives the archive another name; `{id}` and `{version}` in it are replaced with the manifest values.
+By default the build packs that folder into `dist/app.solowey.boo-board.tgz`, with the folder itself at the root of the archive, and removes the folder; `--emit dir` keeps only the folder, `--emit both` keeps both. `--tgz-name` gives the archive another name; `{id}` and `{version}` in it are replaced with the manifest values.
 
 ## Releasing
 
-Pushing a git tag matching the manifest `version` (e.g. `0.1.0`) builds the app and attaches `app.solowey.busybar-status-<version>.tgz` to a GitHub release, followed by the agent packages for macOS (arm64 and Intel), Windows and Linux (x64 and arm64) built on runners of those systems (see Packages above). The release notes open with the app's name, id, version and API version. The release fails when the tag differs from the manifest `version`.
+Pushing a git tag matching the manifest `version` (e.g. `0.1.0`) builds the app and attaches `app.solowey.boo-board-<version>.tgz` to a GitHub release, followed by the agent packages for macOS (arm64 and Intel), Windows and Linux (x64 and arm64) built on runners of those systems (see Packages above). The release notes open with the app's name, id, version and API version. The release fails when the tag differs from the manifest `version`.
 
 ## Manifest
 

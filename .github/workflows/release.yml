@@ -41,8 +41,8 @@ jobs:
           {
             echo "## Apps for the bar"
             echo
-            echo "- **Busybar status** (\`app.solowey.busybar-status\`): all the screens in one app, the wheel goes round them."
-            echo "- One app for each screen: \`status-music\`, \`status-agents\`, \`status-servers\`, \`status-calendar\`, \`status-work\`. Install only the ones you need."
+            echo "- **Boo Board** (\`app.solowey.boo-board\`): all the screens in one app, the wheel goes round them."
+            echo "- One app for each screen: \`boo-music\`, \`boo-agents\`, \`boo-servers\`, \`boo-calendar\`, \`boo-work\`. Install only the ones you need."
             echo "- Version: $GITHUB_REF_NAME"
           } > "$RUNNER_TEMP/details.md"
 
@@ -109,8 +109,8 @@ jobs:
       - name: Keep the package as an artifact of the run
         uses: actions/upload-artifact@v5
         with:
-          name: busybar-status-${{ matrix.target }}
-          path: mac-agent/release/busybar-status-*-${{ matrix.target }}.*
+          name: boo-board-${{ matrix.target }}
+          path: mac-agent/release/boo-board-*-${{ matrix.target }}.*
           if-no-files-found: error
 
       - name: Attach to the release
@@ -118,4 +118,4 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$GITHUB_REF_NAME" mac-agent/release/busybar-status-*-${{ matrix.target }}.* --clobber
+        run: gh release upload "$GITHUB_REF_NAME" mac-agent/release/boo-board-*-${{ matrix.target }}.* --clobber

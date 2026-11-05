@@ -1,18 +1,18 @@
 {
-  "name": "busybar-status",
+  "name": "boo-board",
   "private": true,
   "version": "0.2.0",
-  "description": "Busybar status",
+  "description": "Boo Board",
   "author": "solowey1",
   "type": "module",
   "scripts": {
     "typecheck": "npm run typecheck --workspaces",
     "build": "npm run build --workspaces --",
     "versions": "node tools/check-versions.mjs",
-    "app:install": "npm run app:install -w apps/status --",
-    "app:uninstall": "npm run app:uninstall -w apps/status --",
-    "app:run": "npm run app:run -w apps/status --",
-    "app:stop": "npm run app:stop -w apps/status --",
+    "app:install": "npm run app:install -w apps/board --",
+    "app:uninstall": "npm run app:uninstall -w apps/board --",
+    "app:run": "npm run app:run -w apps/board --",
+    "app:stop": "npm run app:stop -w apps/board --",
     "test": "npm test --prefix mac-agent"
   },
   "engines": {

@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "id": "app.solowey.status-servers",
-  "name": "Status: Servers",
+  "id": "app.solowey.boo-servers",
+  "name": "Boo: Servers",
   "version": "0.2.0",
   "api_version": "27.12.0",
-  "description": "The servers screen of Busybar status: icons, a list or a table, a card for each.",
+  "description": "The servers screen of Boo Board: icons, a list or a table, a card for each.",
   "author": "solowey1",
   "heap_size_kib": 128
 }

@@ -13,7 +13,7 @@ const BAR_PATHS = new Set(["/state", "/control"]);
 
 const PARTS = new Set(["music", "claude", "work", "calendar", "servers", "agents", "meta"]);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SCHEMA = join(ROOT, "..", "apps", "status", "src", "appmeta", "settings.json");
+const SCHEMA = join(ROOT, "..", "apps", "board", "src", "appmeta", "settings.json");
 const GLYPHS = join(ROOT, "..", "packages", "core", "src", "glyphs.json");
 const VERSION = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version;
 /** The bar keeps a glyph as one 81-character string; the settings page wants nine rows. */

@@ -1,5 +1,5 @@
 {
-  "name": "busybar-status-agent",
+  "name": "boo-board-agent",
   "private": true,
   "version": "0.2.0",
   "description": "Mac-side data agent for the BUSY Bar status app",

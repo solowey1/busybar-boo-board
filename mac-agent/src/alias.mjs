@@ -11,7 +11,7 @@ export function startAlias({ name, port, address, log }) {
     log(`alias: ${name}.local is only published on macOS`);
     return () => {};
   }
-  const child = spawn("/usr/bin/dns-sd", ["-P", "Busybar status", "_http._tcp", "local", String(port), `${name}.local`, address, "path=/ui"], { stdio: "ignore" });
+  const child = spawn("/usr/bin/dns-sd", ["-P", "Boo Board", "_http._tcp", "local", String(port), `${name}.local`, address, "path=/ui"], { stdio: "ignore" });
   child.on("error", (err) => log(`alias: ${err.message}`));
   return () => child.kill();
 }

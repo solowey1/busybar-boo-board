@@ -1,8 +1,8 @@
 {
-  "name": "@busybar-status/servers",
+  "name": "@boo-board/servers",
   "private": true,
   "version": "0.2.0",
-  "description": "The servers screen of Busybar status: icons, a list or a table, a card for each.",
+  "description": "The servers screen of Boo Board: icons, a list or a table, a card for each.",
   "author": "solowey1",
   "type": "module",
   "scripts": {

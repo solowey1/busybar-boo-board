@@ -1,8 +1,8 @@
 {
-  "name": "@busybar-status/status",
+  "name": "@boo-board/board",
   "private": true,
   "version": "0.2.0",
-  "description": "Busybar status: all screens in one app, the wheel goes round them",
+  "description": "Boo Board: all screens in one app, the wheel goes round them",
   "author": "solowey1",
   "type": "module",
   "scripts": {

@@ -1,17 +1,17 @@
 /** Talks to the BUSY Bar's own HTTP API (the settings of the apps that run on it). */
 /** The combined app: all the screens in one, with the wheel between them. */
-export const APP_ID = "app.solowey.busybar-status";
+export const APP_ID = "app.solowey.boo-board";
 
 /**
  * The screens as apps of their own (see apps/ in the repository). `group` is the screen's tab on the settings page and
  * `screen` its id in the bar app. A screen is there when its own app is on the bar, or the combined one.
  */
 export const MODULES = [
-  { group: "music", screen: "music", app: "app.solowey.status-music", name: "Music" },
-  { group: "ai", screen: "claude", app: "app.solowey.status-agents", name: "Agents" },
-  { group: "servers", screen: "servers", app: "app.solowey.status-servers", name: "Servers" },
-  { group: "calendar", screen: "calendar", app: "app.solowey.status-calendar", name: "Calendar" },
-  { group: "work", screen: "work", app: "app.solowey.status-work", name: "Work time" },
+  { group: "music", screen: "music", app: "app.solowey.boo-music", name: "Boo: Music" },
+  { group: "ai", screen: "claude", app: "app.solowey.boo-agents", name: "Boo: Agents" },
+  { group: "servers", screen: "servers", app: "app.solowey.boo-servers", name: "Boo: Servers" },
+  { group: "calendar", screen: "calendar", app: "app.solowey.boo-calendar", name: "Boo: Calendar" },
+  { group: "work", screen: "work", app: "app.solowey.boo-work", name: "Boo: Work time" },
 ];
 
 async function call(bar, path, init = {}) {

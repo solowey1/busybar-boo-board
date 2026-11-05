@@ -2,7 +2,7 @@
 // Writes BUSY Bar animation files (.anim, format "bicycle1", see lib/anim_file/anim_file_format.h in
 // github.com/busy-app/busybar-firmware and https://developer.busy.app/file_formats.html).
 // The bar plays them on its own, with no work for the app's JavaScript:
-//   node mac-agent/tools/anim.mjs pulse     -> apps/{status,agents}/src/animations/pulse.anim  (the blue wave of the mascot page)
+//   node mac-agent/tools/anim.mjs pulse     -> apps/{board,agents}/src/animations/pulse.anim  (the blue wave of the mascot page)
 //
 // Layout (all little-endian): a 34-byte header, one section "default" covering every frame, then the frames,
 // each a 5-byte header (encodings, mask length, pixel length) and its pixels. This writer keeps it to the simplest
@@ -98,7 +98,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   }
   const data = encodeAnim({ width: W, height: H, fps: 12, frames: Array.from({ length: FRAMES }, (_, f) => pulseFrame(f)) });
   // The two apps that have the mascot page each carry the file: an app's package holds all it plays.
-  for (const app of ["status", "agents"]) {
+  for (const app of ["board", "agents"]) {
     const out = join(ROOT, "apps", app, "src", "animations", "pulse.anim");
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, data);

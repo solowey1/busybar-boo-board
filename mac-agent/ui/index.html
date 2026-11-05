@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Busybar status</title>
+<title>Boo Board</title>
 <style>
   :root { color-scheme: light dark; --bg:#f5f5f7; --card:#fff; --ink:#1d1d1f; --mute:#6e6e73; --line:#e3e3e8; --accent:#d97757; --ok:#2da44e; --bad:#d1242f; }
   @media (prefers-color-scheme: dark) { :root { --bg:#161618; --card:#1f1f22; --ink:#f2f2f4; --mute:#9a9aa1; --line:#2d2d32; } }
@@ -111,14 +111,14 @@ const icon = name => `<svg class="i" viewBox="0 0 24 24">${ICONS[name] || ''}</s
 // ---- texts: the whole page follows the app's language ------------------------------------------
 const L = {
   ru: {
-    title: 'Busybar status — настройки', loading: 'Загрузка…', general: 'Общее', app: 'Приложение', discard: 'Отменить', save: 'Сохранить',
+    title: 'Boo Board — настройки', loading: 'Загрузка…', general: 'Общее', app: 'Приложение', discard: 'Отменить', save: 'Сохранить',
     unsaved: 'Есть несохранённые изменения', connected: 'Подключено к бару', barDown: 'Бар не отвечает', saving: 'Сохраняю…', saved: 'Сохранено', failed: 'Не получилось: ',
     loadFailed: 'Не удалось загрузить настройки: {e}. Откройте страницу из значка в строке меню.',
     screenSub: 'Настройки экрана хранятся на Mac и приходят на бар вместе с данными.', showScreen: 'Показывать экран', showScreenOn: 'Это настройка самого приложения на баре.', showScreenOff: 'Бар не отвечает: настройка недоступна.', byDefault: 'По умолчанию',
     generalSub: 'Подключение к бару, язык и то, как приложение выглядит на Mac.', barWarn: 'Бар не отвечает{e}. Настройки приложения на баре станут доступны после подключения.',
     bar: 'Бар', barAddr: 'Адрес бара', barAddrD: 'IP из веб-интерфейса бара', barPass: 'Пароль HTTP API', passSaved: 'Сохранён. Оставьте пустым, чтобы не менять.', passNone: 'Не задан.', password: 'пароль',
     bound: 'Приложение на баре ищет этот Mac по адресу {a}', boundOk: 'IP и порт уже записаны в настройки приложения.', boundNo: 'Записать IP и порт в настройки приложения.', bind: 'Привязать',
-    instrTitle: 'Этого экрана нет на баре', instrLead: 'Экран ставится отдельным приложением «{name}» или целиком, приложением «Busybar status» со всеми экранами (колесо между экранами и уведомления поверх любого экрана работают только в нём).',
+    instrTitle: 'Этого экрана нет на баре', instrLead: 'Экран ставится отдельным приложением «{name}» или целиком, приложением «Boo Board» со всеми экранами (колесо между экранами и уведомления поверх любого экрана работают только в нём).',
     instrStep1: 'Скачайте файл {file} со <a href="{url}" target="_blank" rel="noopener">страницы релизов</a>. В пакете агента он лежит в папке <code>apps</code>, без номера версии в имени.',
     instrStep2: 'Поставьте его на бар: {cmd} (или любым другим способом установки приложений BUSY).',
     instrStep3: 'Вернитесь сюда и нажмите «Отменить»: вкладка получит настройки экрана, а общие (язык, IP, порт) запишутся в новое приложение при сохранении.',
@@ -128,25 +128,25 @@ const L = {
     mac: 'Приложение на Mac', login: 'Запускать при входе в систему', loginNoTray: 'Приложение в строке меню не запущено: запустите его, чтобы менять это.', loginOn: 'Включён: приложение откроется само после входа.', loginAsk: 'Нужно подтвердить: Системные настройки → Основные → Объекты входа.', loginOff: 'Выключен. Приложение можно убрать из «Объектов входа» и в Системных настройках.',
     showIcon: 'Показывать значок приложения', showIconD: 'Применяется сразу после сохранения.', iconTray: 'Только в строке меню', iconDock: 'Только в Доке', iconBoth: 'В строке меню и в Доке', iconNone: 'Нигде',
     noneWarn: 'Значка не будет ни в Доке, ни в строке меню. Настройки останутся доступны только по адресу в браузере: {u}. Сохраните этот адрес, а токен браузер запомнит сам.',
-    nameLabel: 'Имя адреса в сети', nameOn: 'Настройки откроются по {u} с любого устройства в сети (только имена .local)', nameOff: 'Например «busy-status»: будет открываться по адресу busy-status.local. Пусто — не создавать.', nameReserved: 'Имя «{n}» занято: так называется сам бар.',
+    nameLabel: 'Имя адреса в сети', nameOn: 'Настройки откроются по {u} с любого устройства в сети (только имена .local)', nameOff: 'Например «boo»: будет открываться по адресу boo.local. Пусто — не создавать.', nameReserved: 'Имя «{n}» занято: так называется сам бар.',
     trayIcon: 'Значок в строке меню', trayNote: '«Системная» меняет цвет вместе со строкой меню (светлой или тёмной).', trayMono: 'Системная', trayOrange: 'Оранжевая', trayRainbow: 'Разноцветная', trayGreen: 'Зелёная', trayBlue: 'Синяя',
     srvTitle: 'Адреса для проверки', srvName: 'Название', srvUp: 'Выше', srvDown: 'Ниже', srvDel: 'Убрать', srvOk: 'В сети', srvNo: 'Без ответа', srvReset: 'Цвета по умолчанию', srvNone: 'Серверов нет.', srvAdd: 'Добавить сервер', srvNote: 'Ответ 2xx или 3xx считается «в сети». Проверка раз в минуту. Порядок здесь — порядок на баре, до 12 серверов.', srvIsDown: 'не отвечает', srvIsUp: 'в сети',
     activity: 'Активность', less: 'меньше', more: 'больше', heatNote: 'за {n} дн., наведите на квадрат', noData: 'нет данных',
-    calSources: 'Источники', calNoData: 'нет данных', calOk: 'доступ есть, ближайших встреч: {n}', calNo: 'доступа нет. Откройте «Системные настройки → Конфиденциальность → Календари» и разрешите «Busybar status»', calExclude: 'Не показывать календари', calExcludeD: '(по одному названию в строке)',
+    calSources: 'Источники', calNoData: 'нет данных', calOk: 'доступ есть, ближайших встреч: {n}', calNo: 'доступа нет. Откройте «Системные настройки → Конфиденциальность → Календари» и разрешите «Boo Board»', calExclude: 'Не показывать календари', calExcludeD: '(по одному названию в строке)',
     needToken: 'Нужен токен', needTokenD: 'Эта страница открыта по новому адресу, и браузер ещё не знает токен. Вставьте его: он лежит в ~/.config/busybar-status/config.json, а на странице настроек, открытой из значка в строке меню, есть готовая ссылка.', tokenPlaceholder: 'токен', tokenGo: 'Открыть',
     linkTitle: 'Ссылка с токеном', linkD: 'Для другого браузера или устройства: откроется сразу, токен запомнится.', copy: 'Скопировать', copied: 'Скопировано',
     aiAgents: 'Агенты на этом компьютере', aiAgentNone: 'Сейчас ни один не запущен', aiWorking: 'работает', aiIdle2: 'ждёт', aiUp: 'запущен {n} мин',
     aiNow: 'Сейчас', aiActive: 'Claude: окно идёт, {t} токенов, ${c} по ценам API', aiIdle: 'Claude: окна сейчас нет', aiPrices: 'Цены моделей лежат в mac-agent/src/sources/claude.mjs', aiOthers: 'Другие нейросети', aiOthersT: 'Сообщить о завершении можно из любого инструмента', aiOthersD: 'Команда: {c}; для ожидания ответа — {w}. Экран и маскот отреагируют так же, как на Claude; у других нейросетей свой маскот — привидение.', aiMascots: 'Маскоты', mClaude: 'Claude', mGhost: 'Привидение',
   },
   en: {
-    title: 'Busybar status — settings', loading: 'Loading…', general: 'General', app: 'App', discard: 'Discard', save: 'Save',
+    title: 'Boo Board — settings', loading: 'Loading…', general: 'General', app: 'App', discard: 'Discard', save: 'Save',
     unsaved: 'You have unsaved changes', connected: 'Connected to the bar', barDown: 'The bar is not answering', saving: 'Saving…', saved: 'Saved', failed: 'Failed: ',
     loadFailed: 'Could not load the settings: {e}. Open this page from the menu-bar icon.',
     screenSub: "The screen's settings are kept on the Mac and reach the bar with the data.", showScreen: 'Show the screen', showScreenOn: "This is a setting of the app on the bar itself.", showScreenOff: 'The bar is not answering: the setting is unavailable.', byDefault: 'Default',
     generalSub: 'Connection to the bar, language and how the app looks on the Mac.', barWarn: 'The bar is not answering{e}. The settings of the app on the bar will be available once it connects.',
     bar: 'Bar', barAddr: "Bar's address", barAddrD: "The IP from the bar's web interface", barPass: 'HTTP API password', passSaved: 'Saved. Leave empty to keep it.', passNone: 'Not set.', password: 'password',
     bound: 'The app on the bar looks for this Mac at {a}', boundOk: "The IP and port are already in the app's settings.", boundNo: "Write the IP and port into the app's settings.", bind: 'Bind',
-    instrTitle: 'This screen is not on the bar', instrLead: 'The screen comes as an app of its own, "{name}", or all together in the "Busybar status" app (the wheel between the screens and the notices over any screen work only there).',
+    instrTitle: 'This screen is not on the bar', instrLead: 'The screen comes as an app of its own, "{name}", or all together in the "Boo Board" app (the wheel between the screens and the notices over any screen work only there).',
     instrStep1: 'Download the file {file} from the <a href="{url}" target="_blank" rel="noopener">releases page</a>. In the agent\'s package it is in the <code>apps</code> folder, without the version in its name.',
     instrStep2: 'Install it on the bar: {cmd} (or any other way of installing BUSY apps).',
     instrStep3: 'Come back and press "Discard": the tab will get the screen\'s settings, and the common ones (language, IP, port) are written to the new app when you save.',
@@ -156,11 +156,11 @@ const L = {
     mac: 'App on this Mac', login: 'Start at login', loginNoTray: 'The menu-bar app is not running: start it to change this.', loginOn: 'On: the app opens by itself after you log in.', loginAsk: 'Needs your approval: System Settings → General → Login Items.', loginOff: 'Off. You can also remove the app from Login Items in System Settings.',
     showIcon: "Show the app's icon", showIconD: 'Applied right after saving.', iconTray: 'Menu bar only', iconDock: 'Dock only', iconBoth: 'Menu bar and Dock', iconNone: 'Nowhere',
     noneWarn: 'There will be no icon in the Dock or the menu bar. The settings stay reachable only at their address in a browser: {u}. Save that address; the browser remembers the token itself.',
-    nameLabel: 'Name on the network', nameOn: 'The settings open at {u} from any device on the network (.local names only)', nameOff: 'For example "busy-status": it will open at busy-status.local. Empty means none.', nameReserved: 'The name "{n}" is taken: it is the name of the bar itself.',
+    nameLabel: 'Name on the network', nameOn: 'The settings open at {u} from any device on the network (.local names only)', nameOff: 'For example "boo": it will open at boo.local. Empty means none.', nameReserved: 'The name "{n}" is taken: it is the name of the bar itself.',
     trayIcon: 'Menu-bar icon', trayNote: '"System" changes colour together with the menu bar (light or dark).', trayMono: 'System', trayOrange: 'Orange', trayRainbow: 'Rainbow', trayGreen: 'Green', trayBlue: 'Blue',
     srvTitle: 'Addresses to check', srvName: 'Name', srvUp: 'Up', srvDown: 'Down', srvDel: 'Remove', srvOk: 'Up', srvNo: 'Not answering', srvReset: 'Default colours', srvNone: 'No servers.', srvAdd: 'Add a server', srvNote: 'A 2xx or 3xx answer counts as "up". Checked once a minute. The order here is the order on the bar, up to 12 servers.', srvIsDown: 'not answering', srvIsUp: 'up',
     activity: 'Activity', less: 'less', more: 'more', heatNote: 'last {n} days, hover a square', noData: 'no data',
-    calSources: 'Sources', calNoData: 'no data', calOk: 'access granted, upcoming meetings: {n}', calNo: 'no access. Open System Settings → Privacy & Security → Calendars and allow "Busybar status"', calExclude: 'Ignore calendars', calExcludeD: '(one name per line)',
+    calSources: 'Sources', calNoData: 'no data', calOk: 'access granted, upcoming meetings: {n}', calNo: 'no access. Open System Settings → Privacy & Security → Calendars and allow "Boo Board"', calExclude: 'Ignore calendars', calExcludeD: '(one name per line)',
     needToken: 'A token is needed', needTokenD: 'This page was opened at a new address and the browser does not know the token yet. Paste it: it is in ~/.config/busybar-status/config.json, and the settings page opened from the menu-bar icon has a ready link.', tokenPlaceholder: 'token', tokenGo: 'Open',
     linkTitle: 'Link with the token', linkD: 'For another browser or device: it opens at once and the token is remembered.', copy: 'Copy', copied: 'Copied',
     aiAgents: 'Agents on this computer', aiAgentNone: 'None is running now', aiWorking: 'working', aiIdle2: 'idle', aiUp: 'up {n} min',
@@ -229,7 +229,7 @@ function tabs() {
   return list;
 }
 function drawNav() {
-  $('#nav').innerHTML = '<h1>' + ghostSvg(agent.trayIcon === 'mono' ? 'rainbow' : agent.trayIcon).replace('<svg class="pic"', '<svg width="22" height="22"') + 'Busybar status</h1>' +
+  $('#nav').innerHTML = '<h1>' + ghostSvg(agent.trayIcon === 'mono' ? 'rainbow' : agent.trayIcon).replace('<svg class="pic"', '<svg width="22" height="22"') + 'Boo Board</h1>' +
     tabs().map(x => x.sep ? '<div class="sep"></div>' : `<button data-t="${x.id}" class="${x.id === tab ? 'on' : ''}" ${TAB_COLOR[x.id] ? `style="--tab:${TAB_COLOR[x.id]}"` : ''}>${esc(x.title)}</button>`).join('');
   $('#nav').querySelectorAll('button').forEach(b => b.onclick = () => { tab = b.dataset.t; history.replaceState(null, '', '#' + tab); draw(); });
   // On a narrow screen the tabs scroll sideways: keep the current one in view.
@@ -400,7 +400,7 @@ function general() {
     <div class="row"><div class="t">${dot(S?.tray?.running)}${t('login')}<div class="d">${loginNote()}</div></div><label class="sw"><input type="checkbox" id="login" ${agent.launchAtLogin ? 'checked' : ''}><i></i></label></div>
     <div class="row"><div class="t">${t('showIcon')}<div class="d">${t('showIconD')}</div></div><select id="appIcon">${Object.entries(APP_ICON).map(([k, v]) => `<option value="${k}" ${agent.appIcon === k ? 'selected' : ''}>${t(v)}</option>`).join('')}</select></div>
     ${agent.appIcon === 'none' ? `<div class="warn" style="margin:0 0 12px">${t('noneWarn', { u: `<code>${esc(url)}</code>` })}</div>` : ''}
-    <div class="row"><div class="t">${t('nameLabel')}<div class="d">${name ? t('nameOn', { u: `<code>${esc(D.aliasUrl || `http://${name}.local:${link.port}/ui`)}</code>` }) : t('nameOff')}</div><div class="e" id="nameErr"></div></div><input class="wide" type="text" id="host" maxlength="30" value="${esc(name)}" placeholder="busy-status"></div>
+    <div class="row"><div class="t">${t('nameLabel')}<div class="d">${name ? t('nameOn', { u: `<code>${esc(D.aliasUrl || `http://${name}.local:${link.port}/ui`)}</code>` }) : t('nameOff')}</div><div class="e" id="nameErr"></div></div><input class="wide" type="text" id="host" maxlength="30" value="${esc(name)}" placeholder="boo"></div>
     ${D.aliasUrl ? `<div class="row"><div class="t">${t('linkTitle')}<div class="d">${t('linkD')}</div></div><div style="display:flex;gap:6px"><input class="wide" type="text" id="tokenLink" readonly value="${esc(D.aliasUrl + '?t=' + link.token)}"><button class="btn ghost small" id="copyLink">${icon('copy-check')} ${t('copy')}</button></div></div>` : ''}
   </div>
   <h3>${t('trayIcon')}</h3><div class="card"><div class="opts">${Object.keys(TRAY).map(k => `<label class="${agent.trayIcon === k ? 'on' : ''}"><input type="radio" name="icon" value="${k}" ${agent.trayIcon === k ? 'checked' : ''}>${ghostSvg(k)}${t(TRAY_NAME[k])}</label>`).join('')}</div>

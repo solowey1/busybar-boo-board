@@ -63,7 +63,7 @@ export const GROUPS = [
     id: "app",
     label: "Приложение",
     fields: {
-      rotateSeconds: { type: "integer", label: "Листать экраны само, секунд", description: "0 — только колесом. После поворота колеса автолистание на 15 секунд замирает", default: 0, min: 0, max: 600, step: 5 },
+      rotateSeconds: { type: "integer", label: "Автоматическая смена экранов в секундах", description: "0 — только колесом. После поворота колеса автолистание на 15 секунд замирает", default: 0, min: 0, max: 600, step: 5 },
       hideEmpty: { type: "boolean", label: "Прятать пустые экраны", description: "Музыку, когда ничего не играет; AI без окна; календарь без встреч", default: false },
       flashMs: { type: "integer", label: "Название экрана при переключении, мс", description: "0 — не показывать", default: 700, min: 0, max: 3000, step: 100 },
       alertSound: { type: "boolean", label: "Звук уведомлений", default: true },
@@ -125,7 +125,7 @@ const EN = {
   work: { label: "Work time", fields: { view: ["Default view", "The activity heat map, or yesterday and today; the OK button steps through the views", { grid: "Heat map", today: "Yesterday and today" }], hours: ["Remind after, hours", "Hours of active work in a day, 0 = off"], breakMinutes: ["Break: remind every, minutes", "Minutes of continuous work at the Mac, 0 = off"], keepDays: ["Days to keep", "Totals per day; the activity grid is made of them"], idleSec: ["Count as a pause after, seconds without input", "Keyboard and mouse; while the Mac sleeps or the agent is off, time stands still"], color: ["Accent colour"] } },
   calendar: { label: "Calendar", fields: { view: ["Calendar grid", "Which view comes first: only the meeting, a grid of 3 weeks, or a month. The OK button steps through the views, Play / Pause shows the next meeting", { off: "Off", weeks3: "3 weeks", month: "Month" }], minutes: ["Meeting: how many minutes ahead", "0 = do not pop up ahead of time"], color: ["Accent colour"] } },
   servers: { label: "Servers", fields: { view: ["View", "Which view to start with. The OK button changes the view; Play / Pause: on icons it steps through the servers one by one, in the list and the table it moves the rows up", { tiles: "Icons", list: "List", table: "Table" }], colorOk: ["“Up” colour", "For tiles and the list; a server can have its own"], colorDown: ["“Not answering” colour in the list"], tileDown: ["Tile colour when not answering", "Grey by default; a server can have its own"] } },
-  app: { label: "App", fields: { rotateSeconds: ["Rotate screens by itself, seconds", "0 = only with the wheel. After a turn of the wheel the rotation waits 15 seconds"], hideEmpty: ["Hide empty screens", "Music when nothing plays; AI without a window; calendar without meetings"], flashMs: ["Screen name when switching, ms", "0 = do not show"], alertSound: ["Notification sound"], order: ["Screen order", "Changed on the General tab"] } },
+  app: { label: "App", fields: { rotateSeconds: ["Automatic screen change, in seconds", "0 = only with the wheel. After a turn of the wheel the rotation waits 15 seconds"], hideEmpty: ["Hide empty screens", "Music when nothing plays; AI without a window; calendar without meetings"], flashMs: ["Screen name when switching, ms", "0 = do not show"], alertSound: ["Notification sound"], order: ["Screen order", "Changed on the General tab"] } },
 };
 
 /** The settings groups with their texts in `lang`. */

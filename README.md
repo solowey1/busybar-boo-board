@@ -23,7 +23,7 @@ Every screen has an accent colour you can change. Reminders: a meeting is near, 
 You need macOS 13+, Node 24 (`nvm use` reads `.nvmrc`), the Xcode command line tools (`xcode-select --install`, for `swiftc`), [`media-control`](https://github.com/ungive/media-control) for the music screen (`brew install media-control`), and a BUSY Bar on the same Wi-Fi.
 
 ```sh
-git clone git@github.com:solowey1/busybar-status.git && cd busybar-status
+git clone git@github.com:solowey1/busybar-boo-board.git && cd busybar-boo-board
 nvm use && npm ci
 npm run build                                   # the apps for the bar -> apps/*/dist/*.tgz
 npm run app:install -- --addr <bar ip> --password <bar password>   # the app with all the screens
@@ -33,7 +33,7 @@ npm run app:run     -- --addr <bar ip> --password <bar password>
 
 Then click the icon in the menu bar → **Настроить… / Settings** (the page is `http://127.0.0.1:8787/ui`). On the **General** tab enter the bar's address and password, press **Bind** (it writes the Mac's IP and port into the app on the bar) and **Save**. macOS asks once whether the app may read your calendar.
 
-Prebuilt packages for macOS, Windows and Linux are attached to every [release](https://github.com/solowey1/busybar-status/releases) (see [Packages](#packages)). To remove the menu-bar app: `mac-agent/tray/install.sh uninstall`.
+Prebuilt packages for macOS, Windows and Linux are attached to every [release](https://github.com/solowey1/busybar-boo-board/releases) (see [Packages](#packages)). To remove the menu-bar app: `mac-agent/tray/install.sh uninstall`.
 
 ## Settings
 

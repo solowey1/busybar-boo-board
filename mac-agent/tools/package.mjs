@@ -115,7 +115,7 @@ if (osName === "darwin") {
     chmodSync(join(stage, "start.sh"), 0o755);
     chmodSync(join(bin, "node"), 0o755);
   }
-  writeFileSync(join(stage, "README.txt"), `Boo Board ${manifest.version} (${target})\n\n1. ${osName === "win" ? "start.cmd" : "./start.sh"} starts the agent and opens the settings page in your browser.\n2. On the settings page: enter the bar's address and password, press "Bind".\n3. Put the apps for the bar from the apps folder on it (busy-cli app install FILE, or any other way): "${manifest.id}.tgz" has all the screens in one, the others are one screen each. The settings page tells which is missing.\n\nThe now-playing and calendar screens work on macOS only; work time works everywhere the system reports idle time.\nSee https://github.com/solowey1/busybar-status for the full guide.\n`);
+  writeFileSync(join(stage, "README.txt"), `Boo Board ${manifest.version} (${target})\n\n1. ${osName === "win" ? "start.cmd" : "./start.sh"} starts the agent and opens the settings page in your browser.\n2. On the settings page: enter the bar's address and password, press "Bind".\n3. Put the apps for the bar from the apps folder on it (busy-cli app install FILE, or any other way): "${manifest.id}.tgz" has all the screens in one, the others are one screen each. The settings page tells which is missing.\n\nThe now-playing and calendar screens work on macOS only; work time works everywhere the system reports idle time.\nSee https://github.com/solowey1/busybar-boo-board for the full guide.\n`);
   if (osName === "win") sh("tar", ["-a", "-c", "-f", join(OUT, `${name}.zip`), "-C", OUT, name]);
   else sh("tar", ["-czf", join(OUT, `${name}.tar.gz`), "-C", OUT, name]);
 }

@@ -23,7 +23,7 @@
 Нужны macOS 13+, Node 24 (`nvm use` берёт версию из `.nvmrc`), инструменты командной строки Xcode (`xcode-select --install`, для `swiftc`), [`media-control`](https://github.com/ungive/media-control) для экрана музыки (`brew install media-control`) и BUSY Bar в той же сети Wi-Fi.
 
 ```sh
-git clone git@github.com:solowey1/busybar-status.git && cd busybar-status
+git clone git@github.com:solowey1/busybar-boo-board.git && cd busybar-boo-board
 nvm use && npm ci
 npm run build                                   # приложения для бара -> apps/*/dist/*.tgz
 npm run app:install -- --addr <ip бара> --password <пароль бара>   # приложение со всеми экранами
@@ -33,7 +33,7 @@ npm run app:run     -- --addr <ip бара> --password <пароль бара>
 
 Дальше: значок в строке меню → **Настроить…** (страница `http://127.0.0.1:8787/ui`). На вкладке **Общее** введите адрес бара и пароль, нажмите **Привязать** (в приложение на баре запишутся IP Mac и порт) и **Сохранить**. macOS один раз спросит, можно ли читать календарь.
 
-Готовые пакеты для macOS, Windows и Linux лежат в каждом [релизе](https://github.com/solowey1/busybar-status/releases) (см. [Пакеты](#пакеты)). Убрать приложение из строки меню: `mac-agent/tray/install.sh uninstall`.
+Готовые пакеты для macOS, Windows и Linux лежат в каждом [релизе](https://github.com/solowey1/busybar-boo-board/releases) (см. [Пакеты](#пакеты)). Убрать приложение из строки меню: `mac-agent/tray/install.sh uninstall`.
 
 ## Настройки
 

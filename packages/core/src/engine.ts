@@ -85,6 +85,16 @@ function alertHeader(cfg: Config, kind: string): string {
   return tr(cfg, "notice");
 }
 
+/** An element that shows nothing, of the same type and under the same id: what takes the place of one that goes away. */
+function blank(el: El | undefined): El | null {
+  if (!el) return null;
+  const base = { id: el.id, x: 0, y: 0, align: "top_left", display: "front" };
+  if (el.type === "xpmbitmap") return { ...base, type: "xpmbitmap", data: "! XPM2\n1 1 1 1\n. c none\n." };
+  if (el.type === "text") return { ...base, type: "text", text: " ", font: el.font, color: "#00000000", scroll_rate: 0 };
+  if (el.type === "rectangle") return { ...base, type: "rectangle", width: 1, height: 1, fill: "solid", fill_colors: ["#00000000"], border_width: 0 };
+  return null;
+}
+
 /**
  * Runs an app made of these screens. The combined app has all of them and the wheel goes round; a module has one, and
  * handles only the news that belongs to it (a servers module does not show that a meeting is near).
@@ -114,7 +124,11 @@ function main(): void {
   let danceUntil = 0;
   let claudeDone: { until: number; head: string; text: string; other: boolean } | null = null;
   let settingsRev = -1;
-  let needClear = false;
+  /** The first picture of a run clears the display; `resendAll` sends everything again without clearing (see `sync`). */
+  let needClear = true;
+  /** True once the Mac has answered or failed to, for the first time. */
+  let asked = false;
+  let resendAll = false;
   let lastInputAt = 0;
   let rotateAt = 0;
   let stopped = false;
@@ -249,16 +263,26 @@ function main(): void {
     }
   };
 
-  /** Sends only what changed since the last frame and clears what disappeared. */
+  /**
+   * Sends only what changed since the last frame. What disappeared is not cleared first: the firmware shows its own "Loading"
+   * whenever an app has nothing on the display, so a clear followed by a draw is a visible flash. Instead the elements that
+   * go are replaced, in the same request that draws the new ones, by empty ones of the same type, and cleared afterwards,
+   * when nothing can be seen of them any more. (An element cannot change its type under one id, hence "of the same type".)
+   */
   const sync = async (els: El[], led?: string): Promise<void> => {
     if (drawing) return;
     drawing = true;
     try {
-      // After a failure, or every minute, start from a blank screen: whatever else is still up there is wiped.
+      // The very first picture of a run starts from a blank screen, in case something of an earlier run is still up.
       if (needClear) {
         await device.DisplayClear({ application_name: APP } as never);
         Object.keys(sent).forEach((id) => delete sent[id]);
         needClear = false;
+      }
+      // After a failure, or every minute, everything is sent again, over what is there.
+      if (resendAll) {
+        Object.keys(sent).forEach((id) => delete sent[id]);
+        resendAll = false;
       }
       const changed: El[] = [];
       const ids: Record<string, boolean> = {};
@@ -267,20 +291,25 @@ function main(): void {
         if (!sameEl(sent[el.id], el)) changed.push(el);
       });
       const gone = Object.keys(sent).filter((id) => !ids[id]);
-      if (gone.length > 0) {
-        await device.DisplayClear({ application_name: APP, element_ids: gone } as never);
-        gone.forEach((id) => delete sent[id]);
-      }
-      if (changed.length > 0) {
-        const body: Record<string, unknown> = { application_name: APP, priority: 50, elements: changed };
+      const blanked: El[] = [];
+      gone.forEach((id) => {
+        const b = blank(sent[id]);
+        if (b) blanked.push(b);
+      });
+      if (changed.length > 0 || blanked.length > 0) {
+        const body: Record<string, unknown> = { application_name: APP, priority: 50, elements: changed.concat(blanked) };
         if (led) body.led_notification_color = led;
         await device.DisplayDraw(body as never);
         changed.forEach((el) => {
           sent[el.id] = el;
         });
       }
+      if (gone.length > 0) {
+        await device.DisplayClear({ application_name: APP, element_ids: gone } as never);
+        gone.forEach((id) => delete sent[id]);
+      }
     } catch (err) {
-      needClear = true;
+      resendAll = true;
       throw err;
     } finally {
       drawing = false;
@@ -308,7 +337,7 @@ function main(): void {
     const now = Date.now();
     if (now >= refreshAt && !drawing) {
       refreshAt = now + REFRESH_MS;
-      needClear = true;
+      resendAll = true;
     }
     let ctx = makeCtx(now);
     localAlerts(ctx);
@@ -346,6 +375,9 @@ function main(): void {
         if (s.id === current) n = k + 1;
       });
       els = status("f", byId(current).title(cfg), n + " / " + list.length);
+    } else if (!online && data.rev === 0 && !asked) {
+      // The first answer from the Mac has not come yet: nothing is shown, the bar's own "Loading" is true enough.
+      els = [];
     } else if (!online && data.rev === 0) {
       els = status("o", tr(cfg, "macDown"), cfg.host, RED);
     } else {
@@ -428,6 +460,7 @@ function main(): void {
         online = false;
       })
       .then(() => {
+        asked = true;
         polling = false;
         if (!stopped) pollTimer = setTimeout(poll, online ? 30 : POLL_OFFLINE_MS) as unknown as number;
       });
@@ -514,7 +547,7 @@ function main(): void {
     cfg = c;
     enabled = chosen(c);
     rotateAt = Date.now() + c.s.appRotateSeconds * 1000;
-    needClear = true;
+    resendAll = true;
   };
 
   function reload(): void {
@@ -539,5 +572,3 @@ function main(): void {
     })
     .catch(report);
 }
-
-main();

@@ -4,17 +4,20 @@
 #   tray/install.sh uninstall  stop and remove
 # Starting it at login is a switch in the app's menu and on its settings page.
 set -euo pipefail
-APP="$HOME/Applications/Busybar status.app"
+APP="$HOME/Applications/Boo Board.app"
+# The app was called "Busybar status" before it became Boo Board; the old one is removed.
+OLD="$HOME/Applications/Busybar status.app"
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 stop() {
+  pkill -f "Boo Board.app/Contents/MacOS/BusyBarStatus" 2>/dev/null || true
   pkill -f "Busybar status.app/Contents/MacOS/BusyBarStatus" 2>/dev/null || true
   pkill -f "$DIR/src/index.mjs" 2>/dev/null || true
 }
 
 if [[ "${1:-}" == "uninstall" ]]; then
   stop
-  rm -rf "$APP"
+  rm -rf "$APP" "$OLD"
   echo "removed $APP (a login item, if you had one, disappears with the app)"
   exit 0
 fi
@@ -25,7 +28,7 @@ NODE="${NODE:-$(command -v node)}"
 [[ -x "$NODE" ]] || { echo "node not found" >&2; exit 1; }
 
 stop
-rm -rf "$APP"
+rm -rf "$APP" "$OLD"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$HOME/Applications" "$HOME/.config/busybar-status"
 
 cp "$DIR/tray/Info.plist" "$APP/Contents/Info.plist"

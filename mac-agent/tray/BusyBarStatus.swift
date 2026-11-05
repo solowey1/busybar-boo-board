@@ -72,7 +72,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // The plain style is a template: macOS tints it for a light or a dark menu bar.
         img.isTemplate = (style == "mono")
         item.button?.image = img
-        item.button?.toolTip = "Busybar status"
+        item.button?.toolTip = "Boo Board"
     }
 
     // ---- the agent process ---------------------------------------------------------------
@@ -277,7 +277,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
             i.isEnabled = false
             menu.addItem(i)
         }
-        label("Busybar status")
+        label("Boo Board")
         label(String(format: s(agentUp ? "running" : "down"), port))
         let barHost = ((readJSON(configDir.appendingPathComponent("config.json"))?["bar"] as? [String: Any])?["host"] as? String) ?? ""
         label(barHost.isEmpty ? s("noBar") : String(format: s("bar"), barHost))

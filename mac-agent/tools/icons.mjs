@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Draws every icon of the project from one picture: a rainbow ghost made of LED dots.
 //   icons.mjs appmeta <dir>   the app's icons for the bar (8x8 colour, 11x11 grey)
+//   icons.mjs modules <apps>  the icons of the single-screen apps, a picture and the screen's colour for each (apps/<name>/src/appmeta)
 //   icons.mjs tray <dir>      menu-bar icons, one PNG per style (@2x, 44x36 px)
 //   icons.mjs iconset <dir>   the macOS app icon as an .iconset folder (turn it into .icns with iconutil)
 import { deflateSync } from "node:zlib";
@@ -144,6 +145,56 @@ export function appIconBack() {
   return png(11, 11, 1, px);
 }
 
+/**
+ * The icons of the single-screen apps: a picture of the screen in the screen's own colour (the default accent colour of its
+ * settings), 8x8 for the colour menu and 11x11 for the grey one.
+ */
+export const MODULE_ICONS = {
+  music: {
+    color: "#FFFFFF",
+    front: ["..######", "..#....#", "..#....#", "..#....#", ".##...##", "###..###", ".##...##", "........"],
+    back: ["..#########", "..#.......#", "..#.......#", "..#.......#", "..#.......#", "..#.......#", ".##......##", "###.....###", ".##......##", "...........", "..........."],
+  },
+  agents: {
+    color: "#D97757",
+    front: [".######.", ".#.##.#.", ".######.", "########", "########", ".######.", ".#.##.#.", "........"],
+    back: ["..#######..", ".#########.", ".##.###.##.", ".#########.", "###########", "###########", ".#########.", ".#########.", ".##.###.##.", ".#.......#.", "..........."],
+  },
+  servers: {
+    color: "#3DDC84",
+    front: ["########", "#.#....#", "########", "........", "########", "#.#....#", "########", "........"],
+    back: ["###########", "#.#.......#", "###########", "...........", "###########", "#.#.......#", "###########", "...........", "###########", "#.#.......#", "###########"],
+  },
+  calendar: {
+    color: "#FF3B30",
+    front: [".#....#.", "########", "#......#", "#.#.#..#", "#......#", "#.#.#..#", "########", "........"],
+    back: ["..#.....#..", "###########", "###########", "#.........#", "#..#.#.#..#", "#.........#", "#..#.#.#..#", "#.........#", "#..#.#....#", "###########", "..........."],
+  },
+  work: {
+    color: "#4DA3FF",
+    front: ["..####..", ".#....#.", "#..#...#", "#..#...#", "#..###.#", "#......#", ".#....#.", "..####.."],
+    back: ["...#####...", "..#.....#..", ".#...#...#.", "#....#....#", "#....#....#", "#....###..#", "#.........#", ".#.......#.", "..#.....#..", "...#####...", "..........."],
+  },
+};
+
+/** The 8x8 colour icon of a single-screen app. */
+export function moduleIconFront(name) {
+  const { color, front } = MODULE_ICONS[name];
+  const cv = new Canvas(8, 8);
+  front.forEach((row, y) => row.split("").forEach((c, x) => c === "#" && cv.rect(x, y, x + 1, y + 1, hex(color))));
+  return png(8, 8, 4, cv.px);
+}
+
+/** The 11x11 greyscale icon: the picture at the brightness of the screen's colour (not darker than a dim grey, so it can be seen). */
+export function moduleIconBack(name) {
+  const { color, back } = MODULE_ICONS[name];
+  const [r, g, b] = hex(color);
+  const grey = Math.max(110, Math.round(0.299 * r + 0.587 * g + 0.114 * b));
+  const px = new Uint8Array(11 * 11);
+  back.forEach((row, y) => row.split("").forEach((c, x) => c === "#" && (px[y * 11 + x] = grey)));
+  return png(11, 11, 1, px);
+}
+
 /** A menu-bar icon at 44x36 px (22x18 pt @2x): solid pixels, three to a dot. */
 export function trayIcon(style) {
   const cv = new Canvas(44, 36);
@@ -170,11 +221,18 @@ export function appIcon(size) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const [kind, dir] = process.argv.slice(2);
   if (!dir) {
-    console.error("usage: icons.mjs appmeta|tray|iconset <dir>");
+    console.error("usage: icons.mjs appmeta|modules|tray|iconset <dir>");
     process.exit(1);
   }
   mkdirSync(dir, { recursive: true });
-  if (kind === "appmeta") {
+  if (kind === "modules") {
+    for (const name of Object.keys(MODULE_ICONS)) {
+      const meta = join(dir, name, "src", "appmeta");
+      mkdirSync(meta, { recursive: true });
+      writeFileSync(join(meta, "icon_front_8x8.png"), moduleIconFront(name));
+      writeFileSync(join(meta, "icon_back_11x11.png"), moduleIconBack(name));
+    }
+  } else if (kind === "appmeta") {
     writeFileSync(join(dir, "icon_front_8x8.png"), appIconFront());
     writeFileSync(join(dir, "icon_back_11x11.png"), appIconBack());
   } else if (kind === "tray") {

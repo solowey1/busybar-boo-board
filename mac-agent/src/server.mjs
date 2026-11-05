@@ -13,8 +13,9 @@ const BAR_PATHS = new Set(["/state", "/control"]);
 
 const PARTS = new Set(["music", "claude", "work", "calendar", "servers", "agents", "meta"]);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SCHEMA = join(ROOT, "..", "src", "appmeta", "settings.json");
-const GLYPHS = join(ROOT, "..", "src", "glyphs.json");
+const SCHEMA = join(ROOT, "..", "apps", "board", "src", "appmeta", "settings.json");
+const GLYPHS = join(ROOT, "..", "packages", "core", "src", "glyphs.json");
+const VERSION = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version;
 /** The bar keeps a glyph as one 81-character string; the settings page wants nine rows. */
 const glyphRows = () => Object.fromEntries(Object.entries(JSON.parse(readFileSync(GLYPHS, "utf8"))).map(([k, v]) => [k, Array.from({ length: 9 }, (_, y) => v.slice(y * 9, y * 9 + 9))]));
 
@@ -85,7 +86,7 @@ export function createApi({ hub, app, log = () => {} }) {
     try {
       if (req.method === "GET" && url.pathname === "/state") {
         // The bar says which language its own settings are in.
-        if (url.searchParams.get("lang")) app.barLang(url.searchParams.get("lang"));
+        if (url.searchParams.get("lang")) app.barLang(url.searchParams.get("lang"), url.searchParams.get("app") ?? "");
         const wanted = (url.searchParams.get("s") ?? "").split(",").filter((s) => PARTS.has(s));
         const since = Number(url.searchParams.get("since"));
         // `wait`: hold the request while nothing changes (up to 3 s), so a change reaches the bar the moment it happens.
@@ -149,9 +150,15 @@ export function createApi({ hub, app, log = () => {} }) {
           reserved: RESERVED_HOSTNAMES,
           aliasUrl: app.aliasUrl(),
           bar: { online: false, doc: null, error: null },
+          // Which screens are on the bar (null: not known, the bar does not answer), and what the settings page tells about installing the rest.
+          modules: null,
+          install: { version: VERSION, modules: bar.MODULES.map((m) => ({ group: m.group, name: m.name, app: m.app, file: `${m.app}-${VERSION}.tgz` })), combined: { app: bar.APP_ID, file: `${bar.APP_ID}-${VERSION}.tgz` }, releases: "https://github.com/solowey1/busybar-status/releases" },
         };
         try {
-          out.bar.doc = await bar.getSettings(config.bar);
+          const apps = await bar.installedApps(config.bar);
+          out.modules = apps.screens;
+          // The common settings are shown from the combined app when it is there, else from the first module.
+          out.bar.doc = apps.ids.length > 0 ? await bar.getSettings(config.bar, apps.ids[0]) : null;
           out.bar.online = true;
         } catch (err) {
           out.bar.error = err.message;
@@ -165,7 +172,8 @@ export function createApi({ hub, app, log = () => {} }) {
         let error = null;
         if (body.bar) {
           try {
-            await bar.putSettings(app.getConfig().bar, body.bar);
+            const apps = await bar.installedApps(app.getConfig().bar);
+            await bar.putEverywhere(app.getConfig().bar, body.bar.values ?? {}, apps.ids);
             app.settingsChanged();
           } catch (err) {
             error = err.message;

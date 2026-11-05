@@ -1,0 +1,16 @@
+{
+  "name": "@boo-board/calendar",
+  "private": true,
+  "version": "0.2.0",
+  "description": "The calendar screen of Boo Board: the next meeting and a grid of weeks.",
+  "author": "solowey1",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc",
+    "build": "busy-cli build",
+    "app:install": "busy-cli app install",
+    "app:uninstall": "busy-cli app uninstall",
+    "app:run": "busy-cli app run",
+    "app:stop": "busy-cli app stop"
+  }
+}

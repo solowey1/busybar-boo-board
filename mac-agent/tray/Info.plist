@@ -3,8 +3,8 @@
 <plist version="1.0">
 <dict>
   <key>CFBundleIdentifier</key><string>app.solowey.busybar-status</string>
-  <key>CFBundleName</key><string>Busybar status</string>
-  <key>CFBundleDisplayName</key><string>Busybar status</string>
+  <key>CFBundleName</key><string>Boo Board</string>
+  <key>CFBundleDisplayName</key><string>Boo Board</string>
   <key>CFBundleExecutable</key><string>BusyBarStatus</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>

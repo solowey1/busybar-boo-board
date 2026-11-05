@@ -1,0 +1,10 @@
+{
+  "format_version": 1,
+  "id": "app.solowey.boo-music",
+  "name": "Boo: Music",
+  "version": "0.2.0",
+  "api_version": "27.12.0",
+  "description": "The music screen of Boo Board: cover, title and artist.",
+  "author": "solowey1",
+  "heap_size_kib": 128
+}

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Builds a self-contained package of the Mac agent (with its own Node, so nothing needs installing):
 //   node tools/package.mjs <target>     target: darwin-arm64 | darwin-x64 | linux-x64 | linux-arm64 | win-x64
-// Run `npm run build` in the repository root first; the bar app's archive is added from dist/.
-// Output: release/busybar-status-<version>-<target>.(zip|tar.gz)
+// Run `npm run build` in the repository root first; the archives of the bar apps (apps/*/dist) go into an apps folder.
+// Output: release/boo-board-<version>-<target>.(zip|tar.gz)
 //
 // macOS gets an app bundle (menu-bar icon, calendar access); Windows and Linux get the agent with a start
 // script that opens the settings page: there is no menu-bar app there, and the music and calendar
@@ -23,8 +23,8 @@ if (!TARGETS.includes(target)) {
   process.exit(1);
 }
 const [osName, arch] = target.split("-");
-const manifest = JSON.parse(readFileSync(join(ROOT, "src", "appmeta", "manifest.json"), "utf8"));
-const name = `busybar-status-${manifest.version}-${target}`;
+const manifest = JSON.parse(readFileSync(join(ROOT, "apps", "board", "src", "appmeta", "manifest.json"), "utf8"));
+const name = `boo-board-${manifest.version}-${target}`;
 const OUT = join(AGENT, "release");
 const stage = join(OUT, name);
 const sh = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: "inherit", ...opts });
@@ -59,16 +59,32 @@ function putAgent(dest) {
   const skip = (p) => /node_modules|\.DS_Store/.test(p);
   mkdirSync(join(dest, "mac-agent"), { recursive: true });
   for (const part of ["src", "ui", "bin", "package.json"]) cpSync(join(AGENT, part), join(dest, "mac-agent", part), { recursive: true, filter: (p) => !skip(p) });
-  mkdirSync(join(dest, "src", "appmeta"), { recursive: true });
-  cpSync(join(ROOT, "src", "appmeta", "settings.json"), join(dest, "src", "appmeta", "settings.json"));
-  cpSync(join(ROOT, "src", "glyphs.json"), join(dest, "src", "glyphs.json"));
+  // The agent reads the bar app's settings schema and the server glyphs from where they are in the repository.
+  mkdirSync(join(dest, "apps", "board", "src", "appmeta"), { recursive: true });
+  cpSync(join(ROOT, "apps", "board", "src", "appmeta", "settings.json"), join(dest, "apps", "board", "src", "appmeta", "settings.json"));
+  mkdirSync(join(dest, "packages", "core", "src"), { recursive: true });
+  cpSync(join(ROOT, "packages", "core", "src", "glyphs.json"), join(dest, "packages", "core", "src", "glyphs.json"));
 }
 
-const appArchive = join(ROOT, "dist", `${manifest.id}.tgz`);
+/** The apps for the bar, built by `npm run build`: the one with all the screens and one for each screen, in an `apps` folder. */
+function putApps(dest) {
+  const dir = join(ROOT, "apps");
+  mkdirSync(join(dest, "apps"), { recursive: true });
+  let n = 0;
+  for (const app of readdirSync(dir)) {
+    const dist = join(dir, app, "dist");
+    if (!existsSync(dist)) continue;
+    for (const f of readdirSync(dist)) if (f.endsWith(".tgz")) {
+      cpSync(join(dist, f), join(dest, "apps", f));
+      n++;
+    }
+  }
+  if (n === 0) console.warn("no built apps found: run `npm run build` first");
+}
 
 if (osName === "darwin") {
   if (process.platform !== "darwin") throw new Error("the macOS app is built on macOS (swiftc, iconutil)");
-  const app = join(stage, "Busybar status.app");
+  const app = join(stage, "Boo Board.app");
   const res = join(app, "Contents", "Resources");
   mkdirSync(join(app, "Contents", "MacOS"), { recursive: true });
   mkdirSync(join(res, "node"), { recursive: true });
@@ -84,14 +100,14 @@ if (osName === "darwin") {
   // An ad-hoc signature: the app has an identity for the privacy prompts, but it is not notarised,
   // so the first start needs a right click -> Open.
   sh("/usr/bin/codesign", ["--force", "--deep", "--sign", "-", app]);
-  if (existsSync(appArchive)) cpSync(appArchive, join(stage, `${manifest.id}.tgz`));
+  putApps(stage);
   sh("/usr/bin/ditto", ["-c", "-k", "--keepParent", stage, join(OUT, `${name}.zip`)]);
 } else {
   const bin = join(stage, "node");
   mkdirSync(bin);
   cpSync(nodeBin, join(bin, osName === "win" ? "node.exe" : "node"));
   putAgent(stage);
-  if (existsSync(appArchive)) cpSync(appArchive, join(stage, `${manifest.id}.tgz`));
+  putApps(stage);
   if (osName === "win") {
     writeFileSync(join(stage, "start.cmd"), '@echo off\r\ncd /d "%~dp0"\r\nset BUSYBAR_OPEN=1\r\nnode\\node.exe mac-agent\\src\\index.mjs\r\n');
   } else {
@@ -99,7 +115,7 @@ if (osName === "darwin") {
     chmodSync(join(stage, "start.sh"), 0o755);
     chmodSync(join(bin, "node"), 0o755);
   }
-  writeFileSync(join(stage, "README.txt"), `Busybar status ${manifest.version} (${target})\n\n1. ${osName === "win" ? "start.cmd" : "./start.sh"} starts the agent and opens the settings page in your browser.\n2. On the settings page: enter the bar's address and password, press "Bind".\n3. Install ${manifest.id}.tgz on the bar (busy-cli app install, or the bar's web interface).\n\nThe now-playing and calendar screens work on macOS only; work time works everywhere the system reports idle time.\nSee https://github.com/solowey1/busybar-status for the full guide.\n`);
+  writeFileSync(join(stage, "README.txt"), `Boo Board ${manifest.version} (${target})\n\n1. ${osName === "win" ? "start.cmd" : "./start.sh"} starts the agent and opens the settings page in your browser.\n2. On the settings page: enter the bar's address and password, press "Bind".\n3. Put the apps for the bar from the apps folder on it (busy-cli app install FILE, or any other way): "${manifest.id}.tgz" has all the screens in one, the others are one screen each. The settings page tells which is missing.\n\nThe now-playing and calendar screens work on macOS only; work time works everywhere the system reports idle time.\nSee https://github.com/solowey1/busybar-status for the full guide.\n`);
   if (osName === "win") sh("tar", ["-a", "-c", "-f", join(OUT, `${name}.zip`), "-C", OUT, name]);
   else sh("tar", ["-czf", join(OUT, `${name}.tar.gz`), "-C", OUT, name]);
 }

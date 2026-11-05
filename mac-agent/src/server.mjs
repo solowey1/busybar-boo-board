@@ -152,7 +152,7 @@ export function createApi({ hub, app, log = () => {} }) {
           bar: { online: false, doc: null, error: null },
           // Which screens are on the bar (null: not known, the bar does not answer), and what the settings page tells about installing the rest.
           modules: null,
-          install: { version: VERSION, modules: bar.MODULES.map((m) => ({ group: m.group, name: m.name, app: m.app, file: `${m.app}-${VERSION}.tgz` })), combined: { app: bar.APP_ID, file: `${bar.APP_ID}-${VERSION}.tgz` }, releases: "https://github.com/solowey1/busybar-status/releases" },
+          install: { version: VERSION, modules: bar.MODULES.map((m) => ({ group: m.group, name: m.name, app: m.app, file: `${m.app}-${VERSION}.tgz` })), combined: { app: bar.APP_ID, file: `${bar.APP_ID}-${VERSION}.tgz` }, releases: "https://github.com/solowey1/busybar-boo-board/releases" },
         };
         try {
           const apps = await bar.installedApps(config.bar);

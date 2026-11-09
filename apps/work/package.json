@@ -1,7 +1,7 @@
 {
   "name": "@boo-board/work",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The work-time screen of Boo Board: the activity grid, yesterday and today.",
   "author": "solowey1",
   "type": "module",

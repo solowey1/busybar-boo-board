@@ -1,7 +1,7 @@
 {
   "name": "@boo-board/board",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Boo Board: all screens in one app, the wheel goes round them",
   "author": "solowey1",
   "type": "module",

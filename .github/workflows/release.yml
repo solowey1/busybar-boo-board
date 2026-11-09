@@ -99,11 +99,18 @@ jobs:
 
       - run: npm ci
 
+      # On Windows, bash finds Git's GNU tar first: it takes "D:\..." for a host name and cannot write zip. Both the build (busy-cli
+      # packs the apps with tar) and the packager need Windows' own tar (bsdtar). Only tar is put first: System32 as a whole would
+      # bring its bash.exe (the WSL launcher) in front of Git's.
       # The packages carry the bar app's archive too.
-      - run: npm run build
+      - run: |
+          if [ "$RUNNER_OS" = Windows ]; then mkdir -p /tmp/bsdtar && cp /c/Windows/System32/tar.exe /tmp/bsdtar/ && export PATH="/tmp/bsdtar:$PATH" && tar --version; fi
+          npm run build
         shell: bash
 
-      - run: node mac-agent/tools/package.mjs ${{ matrix.target }}
+      - run: |
+          if [ "$RUNNER_OS" = Windows ]; then mkdir -p /tmp/bsdtar && cp /c/Windows/System32/tar.exe /tmp/bsdtar/ && export PATH="/tmp/bsdtar:$PATH" && tar --version; fi
+          node mac-agent/tools/package.mjs ${{ matrix.target }}
         shell: bash
 
       - name: Keep the package as an artifact of the run

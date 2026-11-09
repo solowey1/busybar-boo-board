@@ -54,11 +54,11 @@ const nodeDir = join(unpacked, readdirSync(unpacked)[0]);
 const nodeBin = osName === "win" ? join(nodeDir, "node.exe") : join(nodeDir, "bin", "node");
 
 // ---- the agent -------------------------------------------------------------------------------
-/** Where the agent's files go, relative to the package's root: it expects mac-agent/ next to src/. */
+/** Where the agent's files go, relative to the package's root: it expects agent/ next to src/. */
 function putAgent(dest) {
   const skip = (p) => /node_modules|\.DS_Store/.test(p);
-  mkdirSync(join(dest, "mac-agent"), { recursive: true });
-  for (const part of ["src", "ui", "bin", "package.json"]) cpSync(join(AGENT, part), join(dest, "mac-agent", part), { recursive: true, filter: (p) => !skip(p) });
+  mkdirSync(join(dest, "agent"), { recursive: true });
+  for (const part of ["src", "ui", "bin", "package.json"]) cpSync(join(AGENT, part), join(dest, "agent", part), { recursive: true, filter: (p) => !skip(p) });
   // The agent reads the bar app's settings schema and the server glyphs from where they are in the repository.
   mkdirSync(join(dest, "apps", "board", "src", "appmeta"), { recursive: true });
   cpSync(join(ROOT, "apps", "board", "src", "appmeta", "settings.json"), join(dest, "apps", "board", "src", "appmeta", "settings.json"));
@@ -109,9 +109,9 @@ if (osName === "darwin") {
   putAgent(stage);
   putApps(stage);
   if (osName === "win") {
-    writeFileSync(join(stage, "start.cmd"), '@echo off\r\ncd /d "%~dp0"\r\nset BUSYBAR_OPEN=1\r\nnode\\node.exe mac-agent\\src\\index.mjs\r\n');
+    writeFileSync(join(stage, "start.cmd"), '@echo off\r\ncd /d "%~dp0"\r\nset BUSYBAR_OPEN=1\r\nnode\\node.exe agent\\src\\index.mjs\r\n');
   } else {
-    writeFileSync(join(stage, "start.sh"), '#!/bin/sh\ncd "$(dirname "$0")"\nBUSYBAR_OPEN=1 exec ./node/node mac-agent/src/index.mjs\n');
+    writeFileSync(join(stage, "start.sh"), '#!/bin/sh\ncd "$(dirname "$0")"\nBUSYBAR_OPEN=1 exec ./node/node agent/src/index.mjs\n');
     chmodSync(join(stage, "start.sh"), 0o755);
     chmodSync(join(bin, "node"), 0o755);
   }

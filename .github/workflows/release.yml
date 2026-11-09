@@ -110,14 +110,14 @@ jobs:
 
       - run: |
           if [ "$RUNNER_OS" = Windows ]; then mkdir -p /tmp/bsdtar && cp /c/Windows/System32/tar.exe /tmp/bsdtar/ && export PATH="/tmp/bsdtar:$PATH" && tar --version; fi
-          node mac-agent/tools/package.mjs ${{ matrix.target }}
+          node agent/tools/package.mjs ${{ matrix.target }}
         shell: bash
 
       - name: Keep the package as an artifact of the run
         uses: actions/upload-artifact@v5
         with:
           name: boo-board-${{ matrix.target }}
-          path: mac-agent/release/boo-board-*-${{ matrix.target }}.*
+          path: agent/release/boo-board-*-${{ matrix.target }}.*
           if-no-files-found: error
 
       - name: Attach to the release
@@ -125,4 +125,4 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$GITHUB_REF_NAME" mac-agent/release/boo-board-*-${{ matrix.target }}.* --clobber
+        run: gh release upload "$GITHUB_REF_NAME" agent/release/boo-board-*-${{ matrix.target }}.* --clobber

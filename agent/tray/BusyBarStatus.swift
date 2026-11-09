@@ -109,7 +109,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // A packaged app carries its own Node and agent inside the bundle.
         if let res = Bundle.main.resourcePath {
             let node = res + "/node/node"
-            let entry = res + "/mac-agent/src/index.mjs"
+            let entry = res + "/agent/src/index.mjs"
             if FileManager.default.isExecutableFile(atPath: node), FileManager.default.fileExists(atPath: entry) { return Launch(node: node, entry: entry) }
         }
         guard let data = try? Data(contentsOf: configDir.appendingPathComponent("tray.json")) else { return nil }

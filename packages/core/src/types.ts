@@ -1,4 +1,4 @@
-/** What the agent sends (see mac-agent/src/sources). */
+/** What the agent sends (see agent/src/sources). */
 export interface MusicData {
   active: boolean;
   playing?: boolean;
@@ -71,7 +71,7 @@ export interface AgentAlert {
   text: string;
 }
 
-/** The settings of the screens, kept on the computer and sent to the bar flat (see mac-agent/src/appsettings.mjs). */
+/** The settings of the screens, kept on the computer and sent to the bar flat (see agent/src/appsettings.mjs). */
 export interface AppSettings {
   musicArtwork: boolean;
   musicArtworkOpacity: number;

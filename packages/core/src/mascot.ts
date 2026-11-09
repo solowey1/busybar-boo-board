@@ -23,9 +23,11 @@ export interface Pose {
   /** the ghost only: its hem, in one of two shapes, and a sway to the right */
   wave?: 0 | 1;
   sway?: 0 | 1;
+  /** the block only: it is squashed flat, one row lower (a landing, a keystroke) */
+  squash?: 0 | 1;
 }
 
-export type Style = "claude" | "ghost";
+export type Style = "claude" | "ghost" | "block" | "cat";
 
 const W = 12;
 const H = 16;
@@ -101,12 +103,12 @@ export function pose(mood: Mood, at: number): Pose {
   if (mood === "work") {
     // Typing: the arms take turns, the eyes watch the work (the ghost wriggles its hem instead).
     const wave = (f % 2) as 0 | 1;
-    return f % 2 === 0 ? { eyes: "down", armL: "mid", armR: "down", wave } : { eyes: "down", armL: "down", armR: "mid", lift: 0, wave };
+    return f % 2 === 0 ? { eyes: "down", armL: "mid", armR: "down", wave, squash: 0 } : { eyes: "down", armL: "down", armR: "mid", lift: 0, wave, squash: 1 };
   }
   if (mood === "rock") {
     // Playing the guitar: the head bobs, the strumming hand goes up and down.
     const beat = (f % 2) as 0 | 1;
-    return { eyes: "happy", armL: "mid", armR: beat ? "down" : "mid", lift: beat, wave: beat, sway: beat };
+    return { eyes: "happy", armL: "mid", armR: beat ? "down" : "mid", lift: beat, wave: beat, sway: beat, squash: (1 - beat) as 0 | 1 };
   }
   if (mood === "dance") {
     const steps: Pose[] = [
@@ -115,7 +117,8 @@ export function pose(mood: Mood, at: number): Pose {
       { eyes: "happy", armL: "down", armR: "down", lift: 1, legs: "stand" },
       { eyes: "happy", armL: "down", armR: "up", legs: "spread" },
     ];
-    return { ...steps[f % 4], wave: (f % 2) as 0 | 1, sway: (f % 2) as 0 | 1 };
+    // The block squashes on landing (the steps without a lift).
+    return { ...steps[f % 4], wave: (f % 2) as 0 | 1, sway: (f % 2) as 0 | 1, squash: (f % 2) as 0 | 1 };
   }
   if (mood === "sleep") {
     // A slow cycle of the "z".
@@ -184,6 +187,138 @@ function drawGhost(p: Pose): string[] {
   return g.map((r) => r.join(""));
 }
 
+// ---- the block ------------------------------------------------------------------------------------
+// A little blue brick lying on its side: rounded corners, black eyes, no arms and no legs.
+const BLOCK_COLORS = { "#": "#3D8BFF", z: "#4DA3FF", e: "#000000" };
+
+function drawBlock(p: Pose): string[] {
+  const g: string[][] = [];
+  for (let y = 0; y < H; y++) {
+    const r: string[] = [];
+    for (let x = 0; x < W; x++) r.push(".");
+    g.push(r);
+  }
+  const set = (x: number, y: number, c: string) => {
+    if (x >= 0 && x < W && y >= 0 && y < H) g[y][x] = c;
+  };
+  const squash = p.squash === 1;
+  const top = (p.top !== undefined ? p.top : TOP - (p.lift || 0)) + (squash ? 1 : 0);
+  const rows = squash ? 7 : 8;
+  // The two outer rows are the narrow ones, the next two a little wider: round corners.
+  for (let y = 0; y < rows; y++) {
+    const edge = Math.min(y, rows - 1 - y);
+    const inset = edge === 0 ? 2 : edge === 1 ? 1 : 0;
+    for (let x = inset; x < W - inset; x++) set(x, top + y, "#");
+  }
+  // Eyes: black, two rows tall, in the middle of the body.
+  const r0 = top + (squash ? 2 : 3);
+  const e = p.eyes || "open";
+  const shift = e === "left" ? -1 : e === "right" ? 1 : 0;
+  const row = e === "down" ? r0 + 1 : r0;
+  if (e === "happy") {
+    [3, 8].forEach((x) => {
+      set(x, r0, "e");
+      set(x - 1, r0 + 1, "e");
+      set(x + 1, r0 + 1, "e");
+    });
+  } else if (e === "shut") {
+    [2, 3, 4, 7, 8, 9].forEach((x) => set(x, r0 + 1, "e"));
+  } else if (e === "blink") {
+    set(3, r0 + 1, "e");
+    set(8, r0 + 1, "e");
+  } else {
+    [3, 8].forEach((x) => {
+      set(x + shift, row, "e");
+      set(x + shift, row + 1, "e");
+    });
+  }
+  const small = ["###", "..#", ".#.", "###"];
+  const large = ["####", "...#", "..#.", ".#..", "####"];
+  const stamp = (shape: string[], x0: number, y0: number) => shape.forEach((row2, i) => row2.split("").forEach((c, k) => c === "#" && set(x0 + k, y0 + i, "z")));
+  if (p.z === 1) stamp(small, 9, 3);
+  if (p.z === 2) {
+    stamp(small, 4, 4);
+    stamp(large, 8, 0);
+  }
+  if (p.z === 3) stamp(large, 8, 0);
+  return g.map((r) => r.join(""));
+}
+
+// ---- the cat ----------------------------------------------------------------------------------------
+// A white cat: pointed ears, fluffy cheeks, a pink nose and two paws. It has no colour of its own to choose.
+const CAT_COLORS = { "#": "#EDEDED", n: "#FF7F9F", z: "#4DA3FF", e: "#000000" };
+/** The head's top row; the ears stand two rows above it. */
+const CAT_TOP = 6;
+
+function drawCat(p: Pose): string[] {
+  const g: string[][] = [];
+  for (let y = 0; y < H; y++) {
+    const r: string[] = [];
+    for (let x = 0; x < W; x++) r.push(".");
+    g.push(r);
+  }
+  const set = (x: number, y: number, c: string) => {
+    if (x >= 0 && x < W && y >= 0 && y < H) g[y][x] = c;
+  };
+  const top = p.top !== undefined ? p.top : CAT_TOP - (p.lift || 0);
+  [1, 2, 9, 10].forEach((x) => set(x, top - 1, "#"));
+  set(1, top - 2, "#");
+  set(10, top - 2, "#");
+  // The head: narrow at the top, fluffy cheeks in the middle, a chin.
+  for (let y = 0; y < 7; y++) {
+    const from = y <= 3 ? 1 : y <= 5 ? 0 : 2;
+    const to = y <= 3 ? 10 : y <= 5 ? 11 : 9;
+    for (let x = from; x <= to; x++) set(x, top + y, "#");
+  }
+  set(5, top + 4, "n");
+  set(6, top + 4, "n");
+  // Paws: a paw that "types" (the arm is "mid") is raised, one row short.
+  const spread = p.legs === "spread";
+  const paws: [number[], Arm | undefined][] = [
+    [spread ? [2, 3] : [3, 4], p.armL],
+    [spread ? [8, 9] : [7, 8], p.armR],
+  ];
+  paws.forEach((paw) => {
+    const n = p.legRows === 1 || paw[1] === "mid" ? 1 : 2;
+    paw[0].forEach((x) => {
+      set(x, top + 7, "#");
+      if (n === 2) set(x, top + 8, "#");
+    });
+  });
+  // Eyes: the same as the others, black.
+  const e = p.eyes || "open";
+  const shift = e === "left" ? -1 : e === "right" ? 1 : 0;
+  const row = e === "down" ? 3 : 2;
+  const hole = (x: number, y: number) => set(x, top + y, "e");
+  if (e === "happy") {
+    [3, 8].forEach((x) => {
+      hole(x, 2);
+      hole(x - 1, 3);
+      hole(x + 1, 3);
+    });
+  } else if (e === "shut") {
+    [2, 3, 4, 7, 8, 9].forEach((x) => hole(x, 3));
+  } else if (e === "blink") {
+    hole(3, 3);
+    hole(8, 3);
+  } else {
+    [3, 8].forEach((x) => {
+      hole(x + shift, row);
+      hole(x + shift, row + 1);
+    });
+  }
+  const small = ["###", "..#", ".#.", "###"];
+  const large = ["####", "...#", "..#.", ".#..", "####"];
+  const stamp = (shape: string[], x0: number, y0: number) => shape.forEach((row2, i) => row2.split("").forEach((c, k) => c === "#" && set(x0 + k, y0 + i, "z")));
+  if (p.z === 1) stamp(small, 9, 3);
+  if (p.z === 2) {
+    stamp(small, 4, 4);
+    stamp(large, 8, 0);
+  }
+  if (p.z === 3) stamp(large, 8, 0);
+  return g.map((r) => r.join(""));
+}
+
 export interface Sprite {
   rows: string[];
   colors: Record<string, string>;
@@ -192,22 +327,21 @@ export interface Sprite {
 /** The same, for a pose made by hand (the pulse screen builds its own jumps). */
 export function spriteOf(p: Pose, body: string, style: Style = "claude"): Sprite {
   if (style === "ghost") return { rows: drawGhost(p), colors: { o: "#D97757", y: "#FFD000", g: "#3DDC84", b: "#4DA3FF", z: "#4DA3FF", e: "#000000" } };
+  if (style === "block") return { rows: drawBlock(p), colors: BLOCK_COLORS };
+  if (style === "cat") return { rows: drawCat(p), colors: CAT_COLORS };
   return { rows: draw(p), colors: { "#": body, z: "#4DA3FF", e: "#000000" } };
 }
 
 /** One frame of a mascot: 16 rows of 12 characters and the colour of each character. */
 export function mascotSprite(mood: Mood, at: number, body: string, style: Style = "claude"): Sprite {
-  if (style === "ghost") {
-    const p = pose(mood, at);
-    // Asleep it hovers at the bottom edge; the "z" frames come from the same slow cycle.
-    return { rows: drawGhost(mood === "sleep" ? { ...p, top: 5 } : p), colors: { o: "#D97757", y: "#FFD000", g: "#3DDC84", b: "#4DA3FF", z: "#4DA3FF", e: "#000000" } };
-  }
-  return { rows: draw(pose(mood, at)), colors: { "#": body, z: "#4DA3FF", e: "#000000" } };
+  const p = pose(mood, at);
+  // Asleep the ghost hovers at the bottom edge; the "z" frames come from the same slow cycle.
+  return spriteOf(style === "ghost" && mood === "sleep" ? { ...p, top: 5 } : p, body, style);
 }
 
 /**
  * The mascot as a 12x16 bitmap at the left edge. The Claude one takes the "#RRGGBB" body colour,
- * the ghost is always a rainbow.
+ * the others have colours of their own: a rainbow ghost, a blue block, a white cat.
  */
 export function mascot(id: string, mood: Mood, at: number, body: string, style: Style = "claude"): El {
   const sp = mascotSprite(mood, at, body, style);

@@ -7,9 +7,10 @@ const BUSY_S = 90;
 /** ... and as asleep after this long without one. */
 const SLEEP_S = 600;
 
-/** Claude has its own mascot; the ghost is the choice, and also what other AIs get when they report. */
+/** Claude has its own mascot; the others are a choice, and the ghost is also what other AIs get when they report and Claude is the mascot. */
 export function styleOf(ctx: Ctx): Style {
-  if (ctx.cfg.s.aiMascot === "ghost") return "ghost";
+  const m = ctx.cfg.s.aiMascot;
+  if (m === "ghost" || m === "block" || m === "cat") return m;
   return ctx.done !== null && ctx.at < ctx.done.until && ctx.done.other ? "ghost" : "claude";
 }
 

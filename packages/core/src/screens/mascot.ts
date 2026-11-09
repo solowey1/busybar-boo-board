@@ -31,7 +31,7 @@ let step = 0;
 function jump(f: number): Pose {
   const lift = HOP[f % HOP.length];
   const beat = (f % 2) as 0 | 1;
-  return { eyes: "happy", lift, armL: lift > 0 ? "up" : "down", armR: lift > 0 ? "up" : "down", legs: lift > 0 ? "spread" : "stand", wave: beat, sway: beat };
+  return { eyes: "happy", lift, armL: lift > 0 ? "up" : "down", armR: lift > 0 ? "up" : "down", legs: lift > 0 ? "spread" : "stand", wave: beat, sway: beat, squash: lift === 0 ? 1 : 0 };
 }
 
 /** How soon the next picture is wanted: fast while the mascot jumps, slowly while it rests. */
@@ -44,7 +44,7 @@ export function mascotTickMs(ctx: Ctx): number {
 export function mascotView(ctx: Ctx): El[] {
   const { cfg, at } = ctx;
   const mood = moodOf(ctx);
-  const style = cfg.s.aiMascot === "ghost" ? "ghost" : styleOf(ctx);
+  const style = styleOf(ctx);
   const body = cfg.s.aiColor;
 
   if (mood === "work" || mood === "dance" || mood === "rock") {

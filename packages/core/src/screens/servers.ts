@@ -14,8 +14,8 @@ const glyphRows = (name: string | undefined): string[] => {
 /** "#RRGGBB", or the fallback when the server has none of its own. */
 const pick = (own: string | undefined, fallback: string): string => (own && own.length === 7 ? own : fallback);
 
-const tileColor = (cfg: Config, it: ServerItem): string => (it.ok ? pick(it.color, cfg.s.serversColorOk) : pick(it.downColor, cfg.s.serversTileDown));
-const textColor = (cfg: Config, it: ServerItem): string => rgba(it.ok ? pick(it.color, cfg.s.serversColorOk) : pick(it.downColor, cfg.s.serversColorDown));
+const tileColor = (cfg: Config, it: ServerItem): string => (it.ok ? pick(it.color, cfg.s.serversColor) : pick(it.downColor, cfg.s.serversTileDown));
+const textColor = (cfg: Config, it: ServerItem): string => rgba(it.ok ? pick(it.color, cfg.s.serversColor) : pick(it.downColor, cfg.s.serversColorDown));
 
 /**
  * How the tiles sit on the 72x16 screen: up to 5 servers in one row (the fewer, the bigger),
@@ -177,7 +177,7 @@ function scrollPx(mode: string, target: number): number {
   return px;
 }
 
-const dotColor = (cfg: Config, it: ServerItem): string => pick(it.ok ? pick(it.color, cfg.s.serversColorOk) : pick(it.downColor, cfg.s.serversTileDown), "#6A6A6A");
+const dotColor = (cfg: Config, it: ServerItem): string => pick(it.ok ? pick(it.color, cfg.s.serversColor) : pick(it.downColor, cfg.s.serversTileDown), "#6A6A6A");
 
 /**
  * The list (one column) or the table (two): a 5x5 square in the server's colour and the name beside it, the name scrolling

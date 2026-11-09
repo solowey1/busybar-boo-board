@@ -4,36 +4,54 @@
  *
  * Field types: boolean, integer (min, max, step), color ("#RRGGBB"), enum (options), string.
  * `local: true` means only the agent uses it, the bar does not need it.
+ * `section: "screen"` puts a field into the first block of its screen's page (what every screen has: the accent colour
+ * and how its news is told); the rest follow in a block of their own.
  */
+
+/**
+ * The block every screen has: the accent colour and, for a screen that has news, the sound, the LED and the LED's colour.
+ * The LED's colour starts out as the accent colour. `hint` explains what the news of this screen is.
+ */
+const screenFields = (accent, o = {}) => ({
+  color: { type: "color", label: "Акцентный цвет", description: o.colorHint, default: accent, section: "screen" },
+  ...(o.news
+    ? {
+        alertSound: { type: "boolean", label: "Звук оповещений", description: o.news, default: true, section: "screen" },
+        alertLed: { type: "boolean", label: "Световой индикатор оповещений", description: "Подсветка бара вспыхивает, когда у экрана есть новость", default: true, section: "screen" },
+        alertColor: { type: "color", label: "Цвет индикатора оповещений", description: "По умолчанию тот же, что у экрана", default: accent, section: "screen" },
+      }
+    : {}),
+});
+
 export const GROUPS = [
   {
     id: "music",
     label: "Музыка",
     fields: {
+      ...screenFields("#FFFFFF", { colorHint: "На паузе тот же цвет, но полупрозрачный" }),
       artwork: { type: "boolean", label: "Обложка альбома", description: "16×16 слева от текста", default: true },
       artworkOpacity: { type: "integer", label: "Непрозрачность обложки, %", default: 100, min: 10, max: 100, step: 10 },
       stateIcon: { type: "boolean", label: "Значок play / пауза", description: "Маленький значок справа от исполнителя; на паузе жёлтый", default: false },
       startToggle: { type: "boolean", label: "Большая кнопка: пуск и пауза", description: "Центральная кнопка Start / Pause на экране музыки запускает или ставит на паузу", default: false },
-      color: { type: "color", label: "Акцентный цвет", description: "На паузе тот же цвет, но полупрозрачный", default: "#FFFFFF" },
     },
   },
   {
     id: "ai",
     label: "Агенты",
     fields: {
-      mascot: { type: "enum", label: "Маскот", description: "Работает, танцует, когда нейросеть закончила, спит, когда давно ничего нет. У других нейросетей собственного маскота нет, им достаётся привидение", default: "claude", options: [{ value: "claude", label: "Claude" }, { value: "ghost", label: "Привидение" }, { value: "none", label: "Без маскота" }] },
+      ...screenFields("#D97757", { colorHint: "С маскотом текст чуть светлее", news: "Когда агент закончил работу или ждёт ответа" }),
+      mascot: { type: "enum", label: "Маскот", description: "Работает, танцует, когда нейросеть закончила, спит, когда давно ничего нет. Выбрать можно и щелчком по маскоту ниже. Если выбран Claude, другим нейросетям достаётся привидение", default: "claude", options: [{ value: "ghost", label: "Привидение" }, { value: "claude", label: "Claude" }, { value: "block", label: "Блок" }, { value: "cat", label: "Кот" }, { value: "none", label: "Без маскота" }] },
       mascotScreen: { type: "boolean", label: "Экран с маскотом по кнопке OK", description: "На экране агентов OK листает агентов, а последним показывает маскота: он радостно прыгает, пока агент работает, и вокруг расходится синяя затухающая волна", default: true },
       defaultAgent: { type: "enum", label: "Агент по умолчанию", description: "Какой агент показывать первым на экране AI. Если запущено несколько, кнопка OK переключает их", default: "auto", options: [{ value: "auto", label: "Тот, что работает" }, { value: "claude", label: "Claude" }, { value: "codex", label: "Codex" }, { value: "gemini", label: "Gemini" }, { value: "aider", label: "Aider" }, { value: "opencode", label: "OpenCode" }, { value: "cursor", label: "Cursor" }, { value: "goose", label: "Goose" }] },
       overlay: { type: "boolean", label: "Перекрывать другие экраны при завершении", description: "Выключено: о завершении сообщают звук и светодиод, а текст виден на экране AI", default: false },
-      color: { type: "color", label: "Акцентный цвет", description: "С маскотом текст чуть светлее", default: "#D97757" },
     },
   },
   {
     id: "servers",
     label: "Серверы",
     fields: {
+      ...screenFields("#3DDC84", { colorHint: "Цвет серверов «в сети» на плашках и в списке; у сервера может быть свой", news: "Когда сервер перестал отвечать или снова в сети" }),
       view: { type: "enum", label: "Вид", description: "С какого вида начинать. Кнопка OK меняет вид; Play / Pause: на иконках листает серверы по одному, в списке и таблице сдвигает строки вниз", default: "tiles", options: [{ value: "tiles", label: "Иконки" }, { value: "list", label: "Список" }, { value: "table", label: "Таблица" }] },
-      colorOk: { type: "color", label: "Цвет «в сети»", description: "Для плашек и списка; у сервера может быть свой", default: "#3DDC84" },
       colorDown: { type: "color", label: "Цвет «не отвечает» в списке", default: "#FF3030" },
       tileDown: { type: "color", label: "Цвет плашки без ответа", description: "По умолчанию серый; у сервера может быть свой", default: "#6A6A6A" },
     },
@@ -42,21 +60,21 @@ export const GROUPS = [
     id: "calendar",
     label: "Календарь",
     fields: {
+      ...screenFields("#FF3B30", { news: "За несколько минут до встречи, за минуту и в её начале" }),
       view: { type: "enum", label: "Сетка календаря", description: "Какой вид показывать первым: только встреча, сетка на 3 недели или месяц. Кнопка OK листает виды, Play / Pause показывает следующую встречу", default: "weeks3", options: [{ value: "off", label: "Выкл" }, { value: "weeks3", label: "3 недели" }, { value: "month", label: "Месяц" }] },
       minutes: { type: "integer", label: "Встреча: за сколько минут", description: "0 — не показывать заранее", default: 5, min: 0, max: 60 },
-      color: { type: "color", label: "Акцентный цвет", default: "#FF3B30" },
     },
   },
   {
     id: "work",
     label: "Время работы",
     fields: {
+      ...screenFields("#4DA3FF", { news: "Когда набралась дневная норма и когда пора сделать перерыв" }),
       view: { type: "enum", label: "Вид по умолчанию", description: "Тепловая карта активности или вчера и сегодня; кнопка OK листает виды", default: "grid", options: [{ value: "grid", label: "Тепловая карта" }, { value: "today", label: "Вчера и сегодня" }] },
       hours: { type: "integer", label: "Напомнить после, часов", description: "Сколько часов активной работы за день, 0 — выключено", default: 0, min: 0, max: 16 },
       breakMinutes: { type: "integer", label: "Перерыв: напоминать каждые, минут", description: "Минут непрерывной работы за Mac, 0 — выключено", default: 0, min: 0, max: 240, step: 5 },
       keepDays: { type: "integer", label: "Сколько дней хранить", description: "Итоги по дням, из них строится график активности", default: 30, min: 7, max: 365, local: true },
       idleSec: { type: "integer", label: "Считать паузой после, секунд без ввода", description: "Клавиатура и мышь; пока Mac спит или агент выключен, время не идёт", default: 180, min: 30, max: 1800, step: 30, local: true },
-      color: { type: "color", label: "Акцентный цвет", default: "#4DA3FF" },
     },
   },
   {
@@ -66,7 +84,6 @@ export const GROUPS = [
       rotateSeconds: { type: "integer", label: "Автоматическая смена экранов в секундах", description: "0 — только колесом. После поворота колеса автолистание на 15 секунд замирает", default: 0, min: 0, max: 600, step: 5 },
       hideEmpty: { type: "boolean", label: "Прятать пустые экраны", description: "Музыку, когда ничего не играет; AI без окна; календарь без встреч", default: false },
       flashMs: { type: "integer", label: "Название экрана при переключении, мс", description: "0 — не показывать", default: 700, min: 0, max: 3000, step: 100 },
-      alertSound: { type: "boolean", label: "Звук уведомлений", default: true },
       order: { type: "order", label: "Порядок экранов", description: "Меняется на вкладке «Общее»", default: "music,claude,servers,calendar,work", hidden: true },
     },
   },
@@ -89,9 +106,13 @@ const validOrder = (v) => typeof v === "string" && v.split(",").sort().join() ==
 /** Takes stored or submitted values and returns a complete, valid set: unknown keys dropped, bad values replaced. */
 export function sanitizeSettings(input) {
   const out = defaultSettings();
+  // Older files: one sound switch for the whole app, and the servers' "up" colour that became the screen's accent colour.
+  const oldSound = input?.app?.alertSound;
   for (const g of GROUPS) {
     for (const [k, f] of Object.entries(g.fields)) {
-      const v = input?.[g.id]?.[k];
+      let v = input?.[g.id]?.[k];
+      if (v === undefined && k === "alertSound") v = oldSound;
+      if (v === undefined && g.id === "servers" && k === "color") v = input?.servers?.colorOk;
       if (v === undefined) continue;
       if (f.type === "boolean" && typeof v === "boolean") out[g.id][k] = v;
       else if (f.type === "integer" && Number.isFinite(v)) {
@@ -118,14 +139,22 @@ export function forBar(settings) {
   return out;
 }
 
+/** English texts of the fields that every screen has; a screen's own entry (its news, its colour) comes first. */
+const COMMON_EN = {
+  color: ["Accent colour"],
+  alertSound: ["Alert sound"],
+  alertLed: ["Alert LED", "The bar's backlight flashes when the screen has news"],
+  alertColor: ["Alert LED colour", "The screen's accent colour by default"],
+};
+
 /** English texts for the settings page: group id -> { label, fields: { field -> [label, description] } }; enum options by value. */
 const EN = {
   music: { label: "Music", fields: { artwork: ["Album cover", "16×16 to the left of the text"], artworkOpacity: ["Cover opacity, %"], stateIcon: ["Play / pause icon", "A small icon to the right of the artist; yellow on pause"], startToggle: ["Big button: play and pause", "The central Start / Pause button on the music screen plays or pauses"], color: ["Accent colour", "On pause the same colour, half transparent"] } },
-  ai: { label: "Agents", fields: { mascot: ["Mascot", "Works, dances when an AI is done, sleeps when nothing happens for a while. Other AIs have no mascot of their own and get the ghost", { claude: "Claude", ghost: "Ghost", none: "No mascot" }], mascotScreen: ["Mascot screen on the OK button", "On the agents screen OK steps through the agents and last shows the mascot: it jumps for joy while an agent works and a fading blue wave spreads around it"], defaultAgent: ["Default agent", "Which agent the AI screen shows first. With several running, the OK button switches between them", { auto: "The one that works", claude: "Claude", codex: "Codex", gemini: "Gemini", aider: "Aider", opencode: "OpenCode", cursor: "Cursor", goose: "Goose" }], overlay: ["Cover other screens when finished", "Off: only the sound and the LED tell, and the news waits on the AI screen"], color: ["Accent colour", "With a mascot the text is a little lighter"] } },
-  work: { label: "Work time", fields: { view: ["Default view", "The activity heat map, or yesterday and today; the OK button steps through the views", { grid: "Heat map", today: "Yesterday and today" }], hours: ["Remind after, hours", "Hours of active work in a day, 0 = off"], breakMinutes: ["Break: remind every, minutes", "Minutes of continuous work at the Mac, 0 = off"], keepDays: ["Days to keep", "Totals per day; the activity grid is made of them"], idleSec: ["Count as a pause after, seconds without input", "Keyboard and mouse; while the Mac sleeps or the agent is off, time stands still"], color: ["Accent colour"] } },
-  calendar: { label: "Calendar", fields: { view: ["Calendar grid", "Which view comes first: only the meeting, a grid of 3 weeks, or a month. The OK button steps through the views, Play / Pause shows the next meeting", { off: "Off", weeks3: "3 weeks", month: "Month" }], minutes: ["Meeting: how many minutes ahead", "0 = do not pop up ahead of time"], color: ["Accent colour"] } },
-  servers: { label: "Servers", fields: { view: ["View", "Which view to start with. The OK button changes the view; Play / Pause: on icons it steps through the servers one by one, in the list and the table it moves the rows up", { tiles: "Icons", list: "List", table: "Table" }], colorOk: ["“Up” colour", "For tiles and the list; a server can have its own"], colorDown: ["“Not answering” colour in the list"], tileDown: ["Tile colour when not answering", "Grey by default; a server can have its own"] } },
-  app: { label: "App", fields: { rotateSeconds: ["Automatic screen change, in seconds", "0 = only with the wheel. After a turn of the wheel the rotation waits 15 seconds"], hideEmpty: ["Hide empty screens", "Music when nothing plays; AI without a window; calendar without meetings"], flashMs: ["Screen name when switching, ms", "0 = do not show"], alertSound: ["Notification sound"], order: ["Screen order", "Changed on the General tab"] } },
+  ai: { label: "Agents", fields: { mascot: ["Mascot", "Works, dances when an AI is done, sleeps when nothing happens for a while. If Claude is the mascot, other AIs get the ghost. You can also pick one by clicking it below", { ghost: "Ghost", claude: "Claude", block: "Block", cat: "Cat", none: "No mascot" }], mascotScreen: ["Mascot screen on the OK button", "On the agents screen OK steps through the agents and last shows the mascot: it jumps for joy while an agent works and a fading blue wave spreads around it"], defaultAgent: ["Default agent", "Which agent the AI screen shows first. With several running, the OK button switches between them", { auto: "The one that works", claude: "Claude", codex: "Codex", gemini: "Gemini", aider: "Aider", opencode: "OpenCode", cursor: "Cursor", goose: "Goose" }], overlay: ["Cover other screens when finished", "Off: only the sound and the LED tell, and the news waits on the AI screen"], color: ["Accent colour", "With a mascot the text is a little lighter"], alertSound: ["Alert sound", "When an agent has finished or waits for an answer"] } },
+  work: { label: "Work time", fields: { view: ["Default view", "The activity heat map, or yesterday and today; the OK button steps through the views", { grid: "Heat map", today: "Yesterday and today" }], hours: ["Remind after, hours", "Hours of active work in a day, 0 = off"], breakMinutes: ["Break: remind every, minutes", "Minutes of continuous work at the Mac, 0 = off"], keepDays: ["Days to keep", "Totals per day; the activity grid is made of them"], idleSec: ["Count as a pause after, seconds without input", "Keyboard and mouse; while the Mac sleeps or the agent is off, time stands still"], color: ["Accent colour"], alertSound: ["Alert sound", "When the day's goal is reached and when it is time for a break"] } },
+  calendar: { label: "Calendar", fields: { view: ["Calendar grid", "Which view comes first: only the meeting, a grid of 3 weeks, or a month. The OK button steps through the views, Play / Pause shows the next meeting", { off: "Off", weeks3: "3 weeks", month: "Month" }], minutes: ["Meeting: how many minutes ahead", "0 = do not pop up ahead of time"], color: ["Accent colour"], alertSound: ["Alert sound", "A few minutes before a meeting, a minute before and at its start"] } },
+  servers: { label: "Servers", fields: { view: ["View", "Which view to start with. The OK button changes the view; Play / Pause: on icons it steps through the servers one by one, in the list and the table it moves the rows up", { tiles: "Icons", list: "List", table: "Table" }], color: ["Accent colour", "The colour of servers that are up, on tiles and in the list; a server can have its own"], alertSound: ["Alert sound", "When a server stops answering or is back"], colorDown: ["“Not answering” colour in the list"], tileDown: ["Tile colour when not answering", "Grey by default; a server can have its own"] } },
+  app: { label: "App", fields: { rotateSeconds: ["Automatic screen change, in seconds", "0 = only with the wheel. After a turn of the wheel the rotation waits 15 seconds"], hideEmpty: ["Hide empty screens", "Music when nothing plays; AI without a window; calendar without meetings"], flashMs: ["Screen name when switching, ms", "0 = do not show"], order: ["Screen order", "Changed on the General tab"] } },
 };
 
 /** The settings groups with their texts in `lang`. */
@@ -136,7 +165,7 @@ export function localizedGroups(lang) {
     label: EN[g.id].label,
     fields: Object.fromEntries(
       Object.entries(g.fields).map(([k, f]) => {
-        const [label, description, options] = EN[g.id].fields[k];
+        const [label, description, options] = EN[g.id].fields[k] ?? COMMON_EN[k];
         return [k, { ...f, label, description, options: f.options ? f.options.map((o) => ({ ...o, label: options?.[o.value] ?? o.label })) : undefined }];
       }),
     ),

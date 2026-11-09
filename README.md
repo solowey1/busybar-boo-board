@@ -28,12 +28,12 @@ nvm use && npm ci
 npm run build                                   # the apps for the bar -> apps/*/dist/*.tgz
 npm run app:install -- --addr <bar ip> --password <bar password>   # the app with all the screens
 npm run app:run     -- --addr <bar ip> --password <bar password>
-(cd mac-agent && ./tray/install.sh)             # builds and starts the menu-bar app and the agent
+(cd agent && ./tray/install.sh)             # builds and starts the menu-bar app and the agent
 ```
 
 Then click the icon in the menu bar → **Настроить… / Settings** (the page is `http://127.0.0.1:8787/ui`). On the **General** tab enter the bar's address and password, press **Bind** (it writes the computer's IP and port into the app on the bar) and **Save**. macOS asks once whether the app may read your calendar.
 
-Prebuilt packages for macOS, Windows and Linux are attached to every [release](https://github.com/solowey1/busybar-boo-board/releases) (see [Packages](#packages)). To remove the menu-bar app: `mac-agent/tray/install.sh uninstall`.
+Prebuilt packages for macOS, Windows and Linux are attached to every [release](https://github.com/solowey1/busybar-boo-board/releases) (see [Packages](#packages)). To remove the menu-bar app: `agent/tray/install.sh uninstall`.
 
 ## Settings
 
@@ -70,13 +70,13 @@ A hook tells the bar that an AI is done. For Claude Code, add to `~/.claude/sett
 ```json
 {
   "hooks": {
-    "Stop": [{ "hooks": [{ "type": "command", "command": "node /PATH/TO/mac-agent/bin/notify.mjs claude_done" }] }],
-    "Notification": [{ "hooks": [{ "type": "command", "command": "node /PATH/TO/mac-agent/bin/notify.mjs claude_wait" }] }]
+    "Stop": [{ "hooks": [{ "type": "command", "command": "node /PATH/TO/agent/bin/notify.mjs claude_done" }] }],
+    "Notification": [{ "hooks": [{ "type": "command", "command": "node /PATH/TO/agent/bin/notify.mjs claude_wait" }] }]
   }
 }
 ```
 
-The bar learns that an agent works in about a second without any hook: the agent on the computer watches the agents' processes (CPU of the process and of what it started), their session logs and the hooks. A hook makes it exact: add `UserPromptSubmit` → `node /PATH/TO/mac-agent/bin/notify.mjs claude_start` for the start (no pop-up), and the `Stop` hook above ends it at once. Several agents running at once (Claude, Codex, Gemini, Aider, OpenCode, Cursor, Goose) are listed on the settings page; **OK** on the AI screen switches between them and the settings choose which one comes first. Usage figures (tokens, cost) exist for Claude only; the others show their state. Any other tool (Codex, Gemini, a script) can use `node mac-agent/bin/notify.mjs ai_done "Codex: project"` and `ai_wait`. Usage figures (tokens, cost) are read from Claude Code's logs in `~/.claude/projects`. The cost is what the same tokens would cost at API prices (`PRICES` in `mac-agent/src/sources/claude.mjs`), not your subscription's.
+The bar learns that an agent works in about a second without any hook: the agent on the computer watches the agents' processes (CPU of the process and of what it started), their session logs and the hooks. A hook makes it exact: add `UserPromptSubmit` → `node /PATH/TO/agent/bin/notify.mjs claude_start` for the start (no pop-up), and the `Stop` hook above ends it at once. Several agents running at once (Claude, Codex, Gemini, Aider, OpenCode, Cursor, Goose) are listed on the settings page; **OK** on the AI screen switches between them and the settings choose which one comes first. Usage figures (tokens, cost) exist for Claude only; the others show their state. Any other tool (Codex, Gemini, a script) can use `node agent/bin/notify.mjs ai_done "Codex: project"` and `ai_wait`. Usage figures (tokens, cost) are read from Claude Code's logs in `~/.claude/projects`. The cost is what the same tokens would cost at API prices (`PRICES` in `agent/src/sources/claude.mjs`), not your subscription's.
 
 ## Work time
 
@@ -108,7 +108,7 @@ Each release has `boo-board-<version>-<system>` archives for `darwin-arm64`, `da
 | macOS | `Boo Board.app` with the menu-bar icon (ad-hoc signed, not notarised: open it with right click → Open the first time) | – |
 | Windows, Linux | the agent and `start.cmd` / `start.sh`, which start it and open the settings page | menu-bar app, now-playing, calendar; work time needs `xprintidle` or GNOME on Linux |
 
-The packages are built by GitHub Actions (`.github/workflows/release.yml`), not by hand: pushing a version tag builds one on a runner of each system and attaches them to the release. To try the build without a tag, run the workflow from the Actions tab ("Run workflow"); the packages come as artifacts of the run. The Windows and Linux packages have not been run on those systems by the author. (`node mac-agent/tools/package.mjs <system>` is what the workflow runs; macOS packages need a Mac.)
+The packages are built by GitHub Actions (`.github/workflows/release.yml`), not by hand: pushing a version tag builds one on a runner of each system and attaches them to the release. To try the build without a tag, run the workflow from the Actions tab ("Run workflow"); the packages come as artifacts of the run. The Windows and Linux packages have not been run on those systems by the author. (`node agent/tools/package.mjs <system>` is what the workflow runs; macOS packages need a Mac.)
 
 ## How it works
 
@@ -119,7 +119,7 @@ computer: agent (Node 24) <--- HTTP every 3 s, a tiny answer if nothing changed 
 
 The app on the bar cannot accept connections and cannot write to storage on firmware 1.3.1, so it asks the agent. The agent keeps a revision number and holds each request for up to two seconds while nothing changes (long polling), so a change reaches the bar the moment it happens. The bar counts the playhead, work time and countdowns on its own clock; scrolling and `countdown` elements are drawn by the firmware. Only elements that changed are sent to the display. The settings of the screens travel in the same answer.
 
-`~/.config/busybar-status/config.json` (private, edited from the settings page): port, token (for the browser and the hooks), the bar's address and password, servers, calendars to ignore, icon and Dock choice, `.local` name, login switch, and `settings` for the screens (see `mac-agent/src/appsettings.mjs`).
+`~/.config/busybar-status/config.json` (private, edited from the settings page): port, token (for the browser and the hooks), the bar's address and password, servers, calendars to ignore, icon and Dock choice, `.local` name, login switch, and `settings` for the screens (see `agent/src/appsettings.mjs`).
 
 ## Development
 
@@ -128,11 +128,11 @@ npm run typecheck             # every app for the bar
 npm run build                 # every app -> apps/*/dist/*.tgz
 npm run versions              # all apps have the version of package.json
 npm test                      # the agent: 30 tests
-node mac-agent/tools/icons.mjs appmeta apps/board/src/appmeta   # redraws the ghost icons of the app with all the screens
-node mac-agent/tools/icons.mjs modules apps                     # the icons of the single-screen apps: a picture and the screen's colour each
+node agent/tools/icons.mjs appmeta apps/board/src/appmeta   # redraws the ghost icons of the app with all the screens
+node agent/tools/icons.mjs modules apps                     # the icons of the single-screen apps: a picture and the screen's colour each
 ```
 
-`packages/core/src/` is the code of the bar apps (TypeScript, strict, runs in the firmware's JerryScript, not Node: the engine, the screens, the texts) and `apps/<name>/` is one app each: a `main.ts` that names its screens, its `appmeta/` (manifest, settings, icons) and, for the agents screen, the pulse animation. Heaps are 192 KiB (all the screens) and 128 KiB (a single screen); screens keep their buffers only while they are on the display, and running out of heap stops the app and can restart the whole bar (it did during the measurement, below 112 KiB), so keep per-frame allocations small. `mac-agent/` is the agent: `src/` sources, `ui/` the settings page, `tray/` the menu-bar app (Swift), `tools/` icons and packaging. The mascot page's wave is a native bar animation, `apps/{board,agents}/src/animations/pulse.anim`, written by `node mac-agent/tools/anim.mjs pulse` (the `.anim` format, "bicycle1", is described in the [firmware's `anim_file_format.h`](https://github.com/busy-app/busybar-firmware/blob/dev/lib/anim_file/anim_file_format.h); the writer uses BGRA8888 raw frames, which the bar plays; BGR888 it did not). The firmware loops it by itself, so the app sends the element once. Server tile icons are 9×9 LED versions of [Lucide](https://lucide.dev) icons (ISC licence), made by `mac-agent/tools/glyphs/raster.py` into `packages/core/src/glyphs.json` (one 81-character string per icon); the buttons on the settings page use Lucide icons too. Read `AGENTS.md` before changing the bar app.
+`packages/core/src/` is the code of the bar apps (TypeScript, strict, runs in the firmware's JerryScript, not Node: the engine, the screens, the texts) and `apps/<name>/` is one app each: a `main.ts` that names its screens, its `appmeta/` (manifest, settings, icons) and, for the agents screen, the pulse animation. Heaps are 192 KiB (all the screens) and 128 KiB (a single screen); screens keep their buffers only while they are on the display, and running out of heap stops the app and can restart the whole bar (it did during the measurement, below 112 KiB), so keep per-frame allocations small. `agent/` is the agent: `src/` sources, `ui/` the settings page, `tray/` the menu-bar app (Swift), `tools/` icons and packaging. The mascot page's wave is a native bar animation, `apps/{board,agents}/src/animations/pulse.anim`, written by `node agent/tools/anim.mjs pulse` (the `.anim` format, "bicycle1", is described in the [firmware's `anim_file_format.h`](https://github.com/busy-app/busybar-firmware/blob/dev/lib/anim_file/anim_file_format.h); the writer uses BGRA8888 raw frames, which the bar plays; BGR888 it did not). The firmware loops it by itself, so the app sends the element once. Server tile icons are 9×9 LED versions of [Lucide](https://lucide.dev) icons (ISC licence), made by `agent/tools/glyphs/raster.py` into `packages/core/src/glyphs.json` (one 81-character string per icon); the buttons on the settings page use Lucide icons too. Read `AGENTS.md` before changing the bar app.
 
 ## BUSY app template reference
 

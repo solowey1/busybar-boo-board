@@ -8,7 +8,7 @@ import { moodOf, styleOf } from "./moods";
  * The mascot page of the agents screen (OK steps to it): only the mascot, in the middle. While an agent works (or has
  * just finished) the mascot jumps for joy and a blue "pulse" spreads from it: one continuous wave that fades as it goes.
  *
- * The wave is a native animation of the bar (`src/animations/pulse.anim`, made by `mac-agent/tools/anim.mjs`): the
+ * The wave is a native animation of the bar (`src/animations/pulse.anim`, made by `agent/tools/anim.mjs`): the
  * firmware plays it in a loop by itself, so the app sends it once. Only the small picture of the jumping mascot is sent
  * again and again, and those pictures are made once and kept while the page is shown.
  */

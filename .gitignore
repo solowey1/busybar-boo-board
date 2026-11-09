@@ -16,5 +16,5 @@ dist
 .DS_Store
 *.sw?
 
-# packages built by mac-agent/tools/package.mjs
-mac-agent/release/
+# packages built by agent/tools/package.mjs
+agent/release/

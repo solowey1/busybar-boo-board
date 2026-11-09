@@ -14,7 +14,7 @@ export function styleOf(ctx: Ctx): Style {
   return ctx.done !== null && ctx.at < ctx.done.until && ctx.done.other ? "ghost" : "claude";
 }
 
-/** The agents found running on the computer (none if the agent on the Mac is too old to say). */
+/** The agents found running on the computer (none if the agent on the computer is too old to say). */
 export const agentsOf = (ctx: Ctx): AgentInfo[] => (ctx.data.agents ? ctx.data.agents.list : []);
 
 export function moodOf(ctx: Ctx): Mood {

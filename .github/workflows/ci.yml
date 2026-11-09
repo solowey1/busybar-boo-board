@@ -29,5 +29,5 @@ jobs:
 
       - run: npm run build
 
-      # The Mac agent's tests (the macOS-only ones skip themselves elsewhere).
+      # The agent's tests (the macOS-only ones skip themselves elsewhere).
       - run: npm test

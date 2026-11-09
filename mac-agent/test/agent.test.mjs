@@ -175,7 +175,7 @@ test("screen settings: bad values fall back, numbers are clamped to their step, 
   const flat = forBar(s);
   assert.equal(flat.musicStartToggle, true);
   assert.equal(flat.workBreakMinutes, 0);
-  assert.equal(flat.workKeepDays, undefined); // used only on the Mac
+  assert.equal(flat.workKeepDays, undefined); // used only on the computer
   assert.equal(flat.appFlashMs, 700);
 });
 

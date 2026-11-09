@@ -1,4 +1,4 @@
-/** What the Mac agent sends (see mac-agent/src/sources). */
+/** What the agent sends (see mac-agent/src/sources). */
 export interface MusicData {
   active: boolean;
   playing?: boolean;
@@ -71,7 +71,7 @@ export interface AgentAlert {
   text: string;
 }
 
-/** The settings of the screens, kept on the Mac and sent to the bar flat (see mac-agent/src/appsettings.mjs). */
+/** The settings of the screens, kept on the computer and sent to the bar flat (see mac-agent/src/appsettings.mjs). */
 export interface AppSettings {
   musicArtwork: boolean;
   musicArtworkOpacity: number;
@@ -130,7 +130,7 @@ export interface AgentState {
   calendar?: CalendarData;
   servers?: ServersData;
   agents?: AgentsData;
-  /** bumped when the settings page on the Mac saved something; `settings` are the values of the screens */
+  /** bumped when the settings page on the computer saved something; `settings` are the values of the screens */
   meta?: { settingsRev: number; settings?: Partial<AppSettings> };
   alerts: AgentAlert[];
 }
@@ -144,7 +144,7 @@ export interface Config {
   lang: Lang;
   host: string;
   port: number;
-  /** everything else, from the Mac; the defaults hold until the first answer */
+  /** everything else, from the computer; the defaults hold until the first answer */
   s: AppSettings;
 }
 

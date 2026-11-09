@@ -20,7 +20,7 @@
     "agent_host": {
       "type": "string",
       "label": "IP",
-      "description": "The address of the Mac that runs the agent",
+      "description": "The address of the computer that runs the agent",
       "default": "192.168.1.35",
       "max_length": 64
     },

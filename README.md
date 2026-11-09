@@ -9,14 +9,14 @@ It has two parts: a JavaScript app that runs **on the bar**, and an agent that r
 | Screen | What it shows | OK / Start |
 |---|---|---|
 | Music | cover (16×16, rounded), title and artist (long ones scroll), a progress line the bar moves by itself, an optional play/pause icon | Start: optionally play / pause |
-| Agents | tokens and API-price cost of the current 5-hour Claude window, time to reset, tokens today (`D`) and this week (`W`), a line for how much of the window has passed, and a mascot (Claude's own, or a rainbow ghost) that works the moment any agent works, dances when an AI is done, blinks and sleeps. Several agents running (Claude, Codex, Gemini, Aider, …)? | OK: next agent, then the mascot |
+| Agents | tokens and API-price cost of the current 5-hour Claude window, time to reset, tokens today (`D`) and this week (`W`), a line for how much of the window has passed, and a mascot (a rainbow ghost, Claude's own, a blue block or a cat) that works the moment any agent works, dances when an AI is done, blinks and sleeps. Several agents running (Claude, Codex, Gemini, Aider, …)? | OK: next agent, then the mascot |
 | Work time | by default the activity squares of the last five weeks, like GitHub's (a row a week, today's cell has a white top), with the week and month totals; or yesterday and today (green while you work, yellow on a pause) | OK: the next view (squares, yesterday and today, since when / streak) |
 | Calendar | three views: **off** (only the next meeting with a countdown), **3 weeks** (a row a week, Monday first, big squares, the days with meetings red, today in a white frame) and **month** (five weeks of small squares, like the work screen's); the date and the next meeting stand beside a grid. The setting says which one comes first; it also pops up N minutes before a meeting on any screen | OK: the next view. Start: the next meeting |
 | Servers | one rounded tile per server with its icon (green = up, grey = not answering); the more servers, the smaller the tiles: the icon gives way to the first letter, then to the colour alone. Or a list, or a table of two columns (more servers fit; a name that is too long scrolls) | OK: the view (icons, list, table). Start: on icons, the card of one server at a time (icon, name and address, state and for how long; the address and the time are semi-transparent); in the list and the table, the rows move up one at a time in four quick steps |
 
 **The buttons follow one rule:** the wheel changes the **screen**, **OK** changes the **state** of the screen (a view, the next agent, the mascot), and **Start / Play / Pause** is for the screen's **extra function** (music: play / pause, servers: the card of each server on the icons view, the rows moving up in the list and the table, the calendar: the next meeting).
 
-Every screen has an accent colour you can change. Reminders: a meeting is near, you worked for N hours, time for a break, a server went down, an AI finished.
+Every screen has an accent colour you can change, and its own say on how its news is told (a sound, the LED, the LED's colour). Reminders: a meeting is near, you worked for N hours, time for a break, a server went down, an AI finished.
 
 ## Quick start (macOS)
 
@@ -41,15 +41,17 @@ Prebuilt packages for macOS, Windows and Linux are attached to every [release](h
 
 **In the browser** (`/ui`, from the menu-bar icon): everything else, one tab per screen. Changes are saved on the Mac and reach the bar within seconds.
 
-| Tab | Settings |
+The page of every screen opens with the same block, **Screen and alerts**: **show the screen** (the same switch as on the bar, available when the app with all the screens is installed), the **accent colour**, the **alert sound** on / off, the **alert LED** on / off and the **LED's colour** (the accent colour by default). The music screen has no news, so it has no sound or LED. All the other settings of the screen follow in the block **Other settings**.
+
+| Tab | Other settings of the tab |
 |---|---|
 | General | the bar's address and password, **Bind**; **language of the whole app** (the bar, this page, the menu-bar menu, notifications; applied at once; the first start takes the system's language, Russian or else English); **the order of the screens** (the wheel and the tabs follow it); start at login; show the app in the Dock / menu bar / both / neither; a `.local` name for this page (`boo` by default, so `http://boo.local`; not `busybar`: that is the bar's own name); the look of the menu-bar icon |
-| Music | cover and its opacity; play/pause icon (green, yellow on pause); the big **Start / Pause** button plays / pauses; accent colour (paused: half transparent) |
-| Agents | mascot: Claude, ghost or none; **the mascot page** (the last page after the agents when you press OK; there is no separate screen for it on the wheel); the **default agent** (the ghost is also what other AIs get when they report); **cover other screens when an AI finishes** (off by default: then only the sound and the LED tell, and the news waits on the AI screen); accent colour |
-| Work time | the view to start with (heat map or yesterday and today); reminder after N hours; break reminder every N minutes; how many days to keep (30); idle time that counts as a pause; accent colour; the activity squares |
-| Calendar | **the grid** (off, 3 weeks, month: the view to start with); minutes before a meeting to pop up; calendars to ignore; accent colour (red by default) |
-| Servers | the list (name, address, icon, colours; reorder with the arrows); which view to start with (icons, list, table); colours for up / down |
-| App | auto-rotation, hide empty screens, how long the screen's name stays after the wheel (700 ms, 0 = off), notification sound |
+| Music | cover and its opacity; play/pause icon (green, yellow on pause); the big **Start / Pause** button plays / pauses; on pause the accent colour is half transparent |
+| Agents | mascot: ghost, Claude, a **block** (a blue rounded rectangle with black eyes, no arms or legs), a **cat** or none (in the **Mascots** panel a click on a mascot chooses it: it gets a frame in the accent colour and jumps for joy for 2 seconds); **the mascot page** (the last page after the agents when you press OK; there is no separate screen for it on the wheel); the **default agent** (when Claude is the mascot, other AIs get the ghost when they report); **cover other screens when an AI finishes** (off by default: then only the sound and the LED tell, and the news waits on the AI screen) |
+| Work time | the view to start with (heat map or yesterday and today); reminder after N hours; break reminder every N minutes; how many days to keep (30); idle time that counts as a pause; the activity squares |
+| Calendar | **the grid** (off, 3 weeks, month: the view to start with); minutes before a meeting to pop up; calendars to ignore (the accent colour is red by default) |
+| Servers | the list (name, address, icon, colours; reorder with the arrows); which view to start with (icons, list, table); colours for not answering (the accent colour is the colour of a server that is up) |
+| App | auto-rotation, hide empty screens, how long the screen's name stays after the wheel (700 ms, 0 = off); the **About** block: the version, the link to GitHub and the author (the sound is set on each screen's tab) |
 
 The settings page works on a phone too (open the same address on the same network, with the token link from the General tab): the tabs become a strip on top and the rows stack.
 

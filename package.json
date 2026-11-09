@@ -1,7 +1,7 @@
 {
   "name": "boo-board",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Boo Board",
   "author": "solowey1",
   "type": "module",

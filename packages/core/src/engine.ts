@@ -69,11 +69,23 @@ function draw(s: Screen, ctx: Ctx): El[] {
 /** Alerts about an AI finishing: "claude_done", "ai_wait", ... */
 const isAi = (kind: string): boolean => kind.indexOf("claude") === 0 || kind.indexOf("ai") === 0;
 
+/** The screens that have news of their own; the music screen has none. */
+type Group = "ai" | "servers" | "calendar" | "work";
+
+/** Whose news this is: what no screen claims (a plain notice) is told like the work screen's. */
+const groupOf = (kind: string): Group => (isAi(kind) ? "ai" : kind.indexOf("server") === 0 ? "servers" : kind.indexOf("calendar") === 0 ? "calendar" : "work");
+
+/** How a screen's news is told besides the text: with a sound, with the LED in the screen's alert colour. Each is a setting of the screen. */
+function tell(cfg: Config, g: Group): { sound: boolean; led?: string } {
+  return { sound: cfg.s[`${g}AlertSound` as const], led: cfg.s[`${g}AlertLed` as const] ? rgba(cfg.s[`${g}AlertColor` as const]) : undefined };
+}
+
+/** The colour of a piece of news on the screen (the LED has its own, see `tell`). */
 function alertColor(cfg: Config, kind: string): string {
   if (kind.indexOf("down") >= 0) return RED;
   if (isAi(kind)) return rgba(cfg.s.aiColor);
   if (kind.indexOf("calendar") === 0) return rgba(cfg.s.calendarColor);
-  if (kind.indexOf("up") >= 0) return rgba(cfg.s.serversColorOk);
+  if (kind.indexOf("up") >= 0) return rgba(cfg.s.serversColor);
   return rgba(cfg.s.workColor);
 }
 
@@ -176,7 +188,6 @@ function main(): void {
   };
 
   const play = (path: string): void => {
-    if (!cfg || !cfg.s.appAlertSound) return;
     fetch("http://localhost/api/audio/play", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -184,13 +195,15 @@ function main(): void {
     }).catch(report);
   };
 
-  const show = (els: El[], ms: number, o: { sound?: string; led?: string } = {}): void => {
-    banner = { until: Date.now() + ms, els, led: o.led };
-    if (o.sound) play(o.sound);
+  /** Shows a banner over everything; with a screen's name `g` it is news, told with a sound and the LED as that screen's settings say. */
+  const show = (els: El[], ms: number, g?: Group, sound?: string): void => {
+    const t = cfg && g ? tell(cfg, g) : null;
+    banner = { until: Date.now() + ms, els, led: t ? t.led : undefined };
+    if (t && t.sound && sound) play(sound);
   };
 
-  const showText = (header: string, text: string, color: string): void => {
-    show([label("a.h", header, 0, { color, scroll_rate: 0 }), label("a.t", text, 8, { color: WHITE, scroll_rate: 1500 })], ALERT_MS, { sound: SOUND_REMINDER, led: color });
+  const showText = (header: string, text: string, color: string, g: Group): void => {
+    show([label("a.h", header, 0, { color, scroll_rate: 0 }), label("a.t", text, 8, { color: WHITE, scroll_rate: 1500 })], ALERT_MS, g, SOUND_REMINDER);
   };
 
   /** Whether this app has the screen that the news belongs to: a module shows only its own. */
@@ -203,25 +216,25 @@ function main(): void {
       const wait = a.kind.indexOf("wait") >= 0;
       const text = a.text.replace(/^(Готово|Done):\s*/, "");
       const onAi = current === "claude";
-      const led = rgba(cfg.s.aiColor);
+      const t = tell(cfg, "ai");
       const withMascot = cfg.s.aiMascot !== "none";
       if (withMascot && (onAi || !cfg.s.aiOverlay)) {
         // The news appears beside the happy mascot on the AI screen, and the figures wait. Away from it, with
         // overlaying off, only the sound and the LED tell, and the news waits a minute for a look at the screen.
         claudeDone = { until: now + (onAi ? ALERT_MS : 60000), head: wait ? tr(cfg, "waiting") : tr(cfg, "done"), text: text || tr(cfg, "ai"), other: a.kind.indexOf("claude") !== 0 };
-        banner = { until: now + ALERT_MS, els: [], led, overlay: false };
-        play(SOUND_REMINDER);
+        banner = { until: now + ALERT_MS, els: [], led: t.led, overlay: false };
+        if (t.sound) play(SOUND_REMINDER);
         return;
       }
       if (!onAi && !cfg.s.aiOverlay) {
-        banner = { until: now + ALERT_MS, els: [], led, overlay: false };
-        play(SOUND_REMINDER);
+        banner = { until: now + ALERT_MS, els: [], led: t.led, overlay: false };
+        if (t.sound) play(SOUND_REMINDER);
         return;
       }
       // A banner tells it, and the mascot dances once the banner is gone.
       danceUntil = now + ALERT_MS + 8000;
     }
-    showText(alertHeader(cfg, a.kind), a.text, alertColor(cfg, a.kind));
+    showText(alertHeader(cfg, a.kind), a.text, alertColor(cfg, a.kind), groupOf(a.kind));
   };
 
   /** Pop-ups that the bar works out itself from the data it already has. */
@@ -238,7 +251,7 @@ function main(): void {
       if (stage >= 0 && !done[key + "#" + stage]) {
         done[key + "#" + stage] = true;
         const cal = ALL.filter((s) => s.id === "calendar")[0];
-        if (cal) show(cal.elements({ ...ctx, view: 0 }), ALERT_MS, { sound: stage === 2 ? SOUND_START : SOUND_REMINDER, led: rgba(cfg.s.calendarColor) });
+        if (cal) show(cal.elements({ ...ctx, view: 0 }), ALERT_MS, "calendar", stage === 2 ? SOUND_START : SOUND_REMINDER);
       }
     }
     if (data.work) {
@@ -248,7 +261,7 @@ function main(): void {
         const key = "work|" + day;
         if (data.work.todaySec + grow >= cfg.s.workHours * 3600 && !done[key]) {
           done[key] = true;
-          showText(tr(cfg, "work"), tr(cfg, "workGoal", cfg.s.workHours), rgba(cfg.s.workColor));
+          showText(tr(cfg, "work"), tr(cfg, "workGoal", cfg.s.workHours), rgba(cfg.s.workColor), "work");
         }
       }
       if (cfg.s.workBreakMinutes > 0 && data.work.active) {
@@ -257,7 +270,7 @@ function main(): void {
         const key = "break|" + day + "|" + n;
         if (n >= 1 && !done[key]) {
           done[key] = true;
-          showText(tr(cfg, "breakTitle"), tr(cfg, "breakNow", n * cfg.s.workBreakMinutes), rgba(cfg.s.calendarColor));
+          showText(tr(cfg, "breakTitle"), tr(cfg, "breakNow", n * cfg.s.workBreakMinutes), rgba(cfg.s.workColor), "work");
         }
       }
     }

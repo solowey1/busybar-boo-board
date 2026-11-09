@@ -79,33 +79,45 @@ export interface AppSettings {
   /** the central Start / Pause button plays or pauses */
   musicStartToggle: boolean;
   musicColor: string;
-  /** "claude", "ghost" or "none" */
-  aiMascot: "claude" | "ghost" | "none";
+  /** "claude", "ghost", "block", "cat" or "none" */
+  aiMascot: "claude" | "ghost" | "block" | "cat" | "none";
   aiOverlay: boolean;
   /** OK on the agents screen ends the round of agents with the mascot */
   aiMascotScreen: boolean;
   /** "auto" or the id of an agent */
   aiDefaultAgent: string;
   aiColor: string;
+  aiAlertSound: boolean;
+  aiAlertLed: boolean;
+  aiAlertColor: string;
   workHours: number;
   workBreakMinutes: number;
   workColor: string;
+  workAlertSound: boolean;
+  workAlertLed: boolean;
+  workAlertColor: string;
   /** which view of the work screen comes first */
   workView: "grid" | "today";
   calendarMinutes: number;
   calendarColor: string;
+  calendarAlertSound: boolean;
+  calendarAlertLed: boolean;
+  calendarAlertColor: string;
   /** which view of the calendar comes first: only the meeting, a grid of 3 weeks, or a month */
   calendarView: "off" | "weeks3" | "month";
   /** which view comes first: icons, a list, or a table of two columns */
   serversView: "tiles" | "list" | "table";
-  serversColorOk: string;
+  /** the servers' accent colour: the colour of a server that is up */
+  serversColor: string;
+  serversAlertSound: boolean;
+  serversAlertLed: boolean;
+  serversAlertColor: string;
   serversColorDown: string;
   serversTileDown: string;
   appRotateSeconds: number;
   appHideEmpty: boolean;
   /** how long the screen's name stays after the wheel; 0 = not shown */
   appFlashMs: number;
-  appAlertSound: boolean;
   /** the screens in the order of the wheel: "music,claude,servers,calendar,work" */
   appOrder: string;
 }

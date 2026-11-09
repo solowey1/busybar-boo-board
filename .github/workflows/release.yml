@@ -1,4 +1,4 @@
-# Tag 0.2.0 → release with an <id>-<version>.tgz for every app of the repository (the one with all the screens, and one for each screen),
+# Tag 0.3.0 → release with an <id>-<version>.tgz for every app of the repository (the one with all the screens, and one for each screen),
 # whether the tag is pushed from a console or made by a release in the GitHub UI.
 # The tag must match the version of every app (package.json and the manifests), and each manifest must carry an api_version.
 # The same tag builds the agent's packages (macOS arm64 and Intel, Linux x64 and arm64, Windows) on runners of their own systems

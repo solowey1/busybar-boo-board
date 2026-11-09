@@ -1,7 +1,7 @@
 {
   "name": "@boo-board/music",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The music screen of Boo Board: cover, title and artist.",
   "author": "solowey1",
   "type": "module",

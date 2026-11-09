@@ -16,6 +16,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SCHEMA = join(ROOT, "..", "apps", "board", "src", "appmeta", "settings.json");
 const GLYPHS = join(ROOT, "..", "packages", "core", "src", "glyphs.json");
 const VERSION = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version;
+const REPO = "https://github.com/solowey1/busybar-boo-board";
 /** The bar keeps a glyph as one 81-character string; the settings page wants nine rows. */
 const glyphRows = () => Object.fromEntries(Object.entries(JSON.parse(readFileSync(GLYPHS, "utf8"))).map(([k, v]) => [k, Array.from({ length: 9 }, (_, y) => v.slice(y * 9, y * 9 + 9))]));
 
@@ -152,7 +153,8 @@ export function createApi({ hub, app, log = () => {} }) {
           bar: { online: false, doc: null, error: null },
           // Which screens are on the bar (null: not known, the bar does not answer), and what the settings page tells about installing the rest.
           modules: null,
-          install: { version: VERSION, modules: bar.MODULES.map((m) => ({ group: m.group, name: m.name, app: m.app, file: `${m.app}-${VERSION}.tgz` })), combined: { app: bar.APP_ID, file: `${bar.APP_ID}-${VERSION}.tgz` }, releases: "https://github.com/solowey1/busybar-boo-board/releases" },
+          install: { version: VERSION, modules: bar.MODULES.map((m) => ({ group: m.group, name: m.name, app: m.app, file: `${m.app}-${VERSION}.tgz` })), combined: { app: bar.APP_ID, file: `${bar.APP_ID}-${VERSION}.tgz` }, releases: `${REPO}/releases` },
+          about: { name: "Boo Board", version: VERSION, repo: REPO, author: "solowey1", authorUrl: "https://github.com/solowey1" },
         };
         try {
           const apps = await bar.installedApps(config.bar);

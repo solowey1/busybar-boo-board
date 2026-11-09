@@ -179,6 +179,36 @@ test("screen settings: bad values fall back, numbers are clamped to their step, 
   assert.equal(flat.appFlashMs, 700);
 });
 
+test("screen settings: every screen has the same first block; the LED colour starts out as the accent colour; old files carry over", () => {
+  for (const g of GROUPS.filter((x) => x.id !== "app")) {
+    const first = Object.entries(g.fields).filter(([, f]) => f.section === "screen").map(([k]) => k);
+    // The music screen has no news, so it has no sound and no LED to set.
+    assert.deepEqual(first, g.id === "music" ? ["color"] : ["color", "alertSound", "alertLed", "alertColor"], g.id);
+    if (g.id !== "music") assert.equal(g.fields.alertColor.default, g.fields.color.default, g.id);
+  }
+  // One sound switch for the whole app became one for each screen.
+  assert.equal(GROUPS.find((g) => g.id === "app").fields.alertSound, undefined);
+  const quiet = sanitizeSettings({ app: { alertSound: false }, work: { alertSound: true } });
+  assert.deepEqual([quiet.ai.alertSound, quiet.servers.alertSound, quiet.calendar.alertSound, quiet.work.alertSound], [false, false, false, true]);
+  assert.equal(defaultSettings().ai.alertLed, true);
+  assert.equal(sanitizeSettings({ calendar: { alertColor: "#00ff00" } }).calendar.alertColor, "#00FF00");
+  // The servers' "up" colour is now the screen's accent colour.
+  assert.equal(sanitizeSettings({ servers: { colorOk: "#112233" } }).servers.color, "#112233");
+  assert.equal(sanitizeSettings({ servers: { colorOk: "#112233", color: "#445566" } }).servers.color, "#445566");
+  const flat = forBar(defaultSettings());
+  assert.equal(flat.serversAlertLed, true);
+  assert.equal(flat.workAlertColor, "#4DA3FF");
+  assert.equal(flat.musicAlertSound, undefined);
+  assert.equal(flat.appAlertSound, undefined);
+});
+
+test("mascots: the ghost comes first in the choice, the new ones are accepted, anything else is not", () => {
+  const options = GROUPS.find((g) => g.id === "ai").fields.mascot.options.map((o) => o.value);
+  assert.deepEqual(options, ["ghost", "claude", "block", "cat", "none"]);
+  for (const m of options) assert.equal(sanitizeSettings({ ai: { mascot: m } }).ai.mascot, m);
+  assert.equal(sanitizeSettings({ ai: { mascot: "dog" } }).ai.mascot, "claude");
+});
+
 test("api: the settings page needs no token, its data does; the tray app reports back", async () => {
   const hub = new Hub();
   let reported = null;

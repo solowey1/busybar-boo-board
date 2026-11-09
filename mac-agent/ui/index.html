@@ -59,7 +59,16 @@
   .heat { display:grid; grid-auto-flow:column; grid-template-rows:repeat(7, 14px); grid-auto-columns:14px; justify-content:start; gap:3px; padding:14px 0; overflow-x:auto; }
   .heat i { width:14px; height:14px; border-radius:3px; background:var(--line); }
   .legend { display:flex; gap:4px; align-items:center; color:var(--mute); font-size:12px; padding-bottom:12px; } .legend i { width:12px; height:12px; border-radius:3px; display:inline-block; }
-  .masc { display:flex; gap:24px; padding:14px 0; } .masc div { text-align:center; color:var(--mute); font-size:12px; } .masc svg { display:block; margin:0 auto 6px; }
+  /* The mascots stand on one line: whatever their height, the names sit at the same level (the bottom edge). */
+  .masc { display:flex; align-items:flex-end; flex-wrap:wrap; gap:12px; padding:14px 0; }
+  .masc .mc { display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:8px; min-width:84px; padding:10px 8px; border:2px solid transparent; border-radius:12px; text-align:center; color:var(--mute); font-size:12px; cursor:pointer; user-select:none; }
+  .masc .mc:hover { background:var(--bg); } .masc .mc.on { border-color:var(--acc); color:var(--ink); }
+  .masc .mc svg { display:block; transform-origin:50% 100%; } .masc .mc .eh { display:none; }
+  .masc .mc.happy .eh { display:inline; } .masc .mc.happy .eo { display:none; }
+  .masc .mc.happy svg { animation:hop .5s ease-in-out 4; }
+  @keyframes hop { 0%,100% { transform:translateY(0) scale(1.08,.9); } 15% { transform:translateY(0) scale(1,1); } 50% { transform:translateY(-14px) scale(.96,1.06); } 85% { transform:translateY(0) scale(1,1); } }
+  @media (prefers-reduced-motion: reduce) { .masc .mc.happy svg { animation:none; } }
+  .about a { color:var(--accent); }
   .note { padding:12px 0; color:var(--mute); }
   .warn { background:#d1242f18; border:1px solid var(--bad); color:var(--ink); border-radius:10px; padding:10px 14px; margin-bottom:16px; }
   code { background:var(--bg); padding:1px 5px; border-radius:5px; }
@@ -89,7 +98,6 @@
     .servers .srv > :nth-child(3) { grid-column:1 / -1; justify-self:end; }
     .servers .more { grid-column:1 / -1; }
     .opts { grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); }
-    .masc { flex-wrap:wrap; gap:16px; }
   }
 </style>
 </head>
@@ -136,7 +144,7 @@ const L = {
     needToken: 'Нужен токен', needTokenD: 'Эта страница открыта по новому адресу, и браузер ещё не знает токен. Вставьте его: он лежит в ~/.config/busybar-status/config.json, а на странице настроек, открытой из значка в строке меню, есть готовая ссылка.', tokenPlaceholder: 'токен', tokenGo: 'Открыть',
     linkTitle: 'Ссылка с токеном', linkD: 'Для другого браузера или устройства: откроется сразу, токен запомнится.', copy: 'Скопировать', copied: 'Скопировано',
     aiAgents: 'Агенты на этом компьютере', aiAgentNone: 'Сейчас ни один не запущен', aiWorking: 'работает', aiIdle2: 'ждёт', aiUp: 'запущен {n} мин',
-    aiNow: 'Сейчас', aiActive: 'Claude: окно идёт, {t} токенов, ${c} по ценам API', aiIdle: 'Claude: окна сейчас нет', aiPrices: 'Цены моделей лежат в mac-agent/src/sources/claude.mjs', aiOthers: 'Другие нейросети', aiOthersT: 'Сообщить о завершении можно из любого инструмента', aiOthersD: 'Команда: {c}; для ожидания ответа — {w}. Экран и маскот отреагируют так же, как на Claude; у других нейросетей свой маскот — привидение.', aiMascots: 'Маскоты', mClaude: 'Claude', mGhost: 'Привидение',
+    aiNow: 'Сейчас', aiActive: 'Claude: окно идёт, {t} токенов, ${c} по ценам API', aiIdle: 'Claude: окна сейчас нет', aiPrices: 'Цены моделей лежат в mac-agent/src/sources/claude.mjs', aiOthers: 'Другие нейросети', aiOthersT: 'Сообщить о завершении можно из любого инструмента', aiOthersD: 'Команда: {c}; для ожидания ответа — {w}. Экран и маскот отреагируют так же, как на Claude; у других нейросетей свой маскот — привидение.', aiMascots: 'Маскоты', aiMascotsD: 'Щелчок по маскоту выбирает его.', mBlock: 'Блок', mCat: 'Кот', blkScreen: 'Экран', blkScreenAlerts: 'Экран и оповещения', blkOther: 'Остальные настройки', aboutTitle: 'О приложении', aboutText: 'Отображает на BUSY Bar происходящее на компьютере: музыку, нейросети, серверы, время работы и календарь.', aboutVersion: 'Версия', aboutRepo: 'Репозиторий на GitHub', aboutAuthor: 'Автор', mClaude: 'Claude', mGhost: 'Привидение',
   },
   en: {
     title: 'Boo Board — settings', loading: 'Loading…', general: 'General', app: 'App', discard: 'Discard', save: 'Save',
@@ -164,7 +172,7 @@ const L = {
     needToken: 'A token is needed', needTokenD: 'This page was opened at a new address and the browser does not know the token yet. Paste it: it is in ~/.config/busybar-status/config.json, and the settings page opened from the menu-bar icon has a ready link.', tokenPlaceholder: 'token', tokenGo: 'Open',
     linkTitle: 'Link with the token', linkD: 'For another browser or device: it opens at once and the token is remembered.', copy: 'Copy', copied: 'Copied',
     aiAgents: 'Agents on this computer', aiAgentNone: 'None is running now', aiWorking: 'working', aiIdle2: 'idle', aiUp: 'up {n} min',
-    aiNow: 'Now', aiActive: 'Claude: window is running, {t} tokens, ${c} at API prices', aiIdle: 'Claude: no window right now', aiPrices: 'Model prices are in mac-agent/src/sources/claude.mjs', aiOthers: 'Other AIs', aiOthersT: 'Any tool can report that it has finished', aiOthersD: 'Command: {c}; to wait for a reply: {w}. The screen and the mascot react as they do for Claude; other AIs get a mascot of their own: the ghost.', aiMascots: 'Mascots', mClaude: 'Claude', mGhost: 'Ghost',
+    aiNow: 'Now', aiActive: 'Claude: window is running, {t} tokens, ${c} at API prices', aiIdle: 'Claude: no window right now', aiPrices: 'Model prices are in mac-agent/src/sources/claude.mjs', aiOthers: 'Other AIs', aiOthersT: 'Any tool can report that it has finished', aiOthersD: 'Command: {c}; to wait for a reply: {w}. The screen and the mascot react as they do for Claude; other AIs get a mascot of their own: the ghost.', aiMascots: 'Mascots', aiMascotsD: 'Click a mascot to choose it.', mBlock: 'Block', mCat: 'Cat', blkScreen: 'Screen', blkScreenAlerts: 'Screen and alerts', blkOther: 'Other settings', aboutTitle: 'About', aboutText: 'Displays on the BUSY Bar what is happening on the computer: music, AIs, servers, work time and the calendar.', aboutVersion: 'Version', aboutRepo: 'Repository on GitHub', aboutAuthor: 'Author', mClaude: 'Claude', mGhost: 'Ghost',
   },
 };
 let lang = 'ru';
@@ -202,11 +210,52 @@ function ghostSvg(style, cls = 'pic') {
   }));
   return `<svg class="${cls}" viewBox="0 0 11 11" xmlns="http://www.w3.org/2000/svg">${r}</svg>`;
 }
-const CLAUDE_MASCOT = ['.##########.', '.##.####.##.', '.##.####.##.', '############', '############', '.##########.', '.##########.', '..#.#..#.#..', '..#.#..#.#..'];
-function claudeMascotSvg(color) {
-  let r = '';
-  CLAUDE_MASCOT.forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') r += `<rect x="${x}" y="${y}" width="1" height="1"/>`; }));
-  return `<svg viewBox="0 0 12 9" width="60" height="45" fill="${color}">${r}</svg>`;
+// The mascots as the bar draws them: the body in rows, the eyes apart (open and happy) so a click can make them happy.
+// "#" = the body (Claude takes the accent colour), o y g b = the ghost's rainbow bands, n = the cat's nose.
+const MASCOTS = {
+  ghost: { rows: ['...ooooo...', '..ooooooo..', '.ooooooooo.', '.yyyyyyyyy.', '.yyyyyyyyy.', '.yyyyyyyyy.', '.ggggggggg.', '.ggggggggg.', '.bbbbbbbbb.', '.bbbb.bbbb.', '.bbb...bbb.'], colors: { o: '#d97757', y: '#ffd000', g: '#3ddc84', b: '#4da3ff' }, open: [[3, 3], [3, 4], [7, 3], [7, 4]], happy: [[3, 3], [2, 4], [4, 4], [7, 3], [6, 4], [8, 4]] },
+  claude: { rows: ['.##########.', '.##########.', '.##########.', '############', '############', '.##########.', '.##########.', '..#.#..#.#..', '..#.#..#.#..'], colors: { '#': 'var(--acc)' }, open: [[3, 1], [3, 2], [8, 1], [8, 2]], happy: [[3, 1], [2, 2], [4, 2], [8, 1], [7, 2], [9, 2]] },
+  block: { rows: ['..########..', '.##########.', '############', '############', '############', '############', '.##########.', '..########..'], colors: { '#': '#3d8bff' }, open: [[3, 3], [3, 4], [8, 3], [8, 4]], happy: [[3, 3], [2, 4], [4, 4], [8, 3], [7, 4], [9, 4]] },
+  cat: { rows: ['.#........#.', '.##......##.', '.##########.', '.##########.', '.##########.', '.##########.', '####nn######', '############', '..########..', '...##..##...', '...##..##...'], colors: { '#': '#ededed', n: '#ff7f9f' }, open: [[3, 4], [3, 5], [8, 4], [8, 5]], happy: [[3, 4], [2, 5], [4, 5], [8, 4], [7, 5], [9, 5]] },
+};
+function mascotSvg(id) {
+  const m = MASCOTS[id];
+  const rect = (x, y, fill) => `<rect x="${x}" y="${y}" width="1" height="1" style="fill:${fill}"/>`;
+  let body = '';
+  m.rows.forEach((row, y) => [...row].forEach((c, x) => { if (c !== '.') body += rect(x, y, m.colors[c] || m.colors['#']); }));
+  const eyes = list => list.map(([x, y]) => rect(x, y, '#000')).join('');
+  const cols = m.rows[0].length;
+  return `<svg viewBox="0 0 ${cols} ${m.rows.length}" width="${5 * cols}" height="${5 * m.rows.length}" xmlns="http://www.w3.org/2000/svg">${body}<g class="eo">${eyes(m.open)}</g><g class="eh">${eyes(m.happy)}</g></svg>`;
+}
+// Ghost first, then the others; the names come from the texts.
+const MASCOT_LIST = [['ghost', 'mGhost'], ['claude', 'mClaude'], ['block', 'mBlock'], ['cat', 'mCat']];
+function mascotPanel() {
+  return `<div class="masc" style="--acc:${esc(sets.ai.color)}">${MASCOT_LIST.map(([id, name]) => `<div class="mc ${sets.ai.mascot === id ? 'on' : ''}" data-m="${id}" role="button" tabindex="0">${mascotSvg(id)}<span>${t(name)}</span></div>`).join('')}</div><div class="note" style="padding-top:0">${t('aiMascotsD')}</div>`;
+}
+let happyTimer = 0;
+/** The mascot is chosen as if from the list: the select follows, the frame is drawn in the accent colour, it jumps for joy for 2 seconds. */
+function pickMascot(id) {
+  sets.ai.mascot = id; touch();
+  const sel = document.querySelector('[data-f="ai.mascot"]'); if (sel) sel.value = id;
+  showMascot(id, true);
+}
+function showMascot(id, happy) {
+  document.querySelectorAll('.masc .mc').forEach(el => {
+    el.classList.toggle('on', el.dataset.m === id);
+    el.classList.remove('happy');
+  });
+  const el = document.querySelector(`.masc .mc[data-m="${id}"]`);
+  clearTimeout(happyTimer);
+  if (!el || !happy) return;
+  void el.offsetWidth; // restart the animation if it was playing
+  el.classList.add('happy');
+  happyTimer = setTimeout(() => el.classList.remove('happy'), 2000);
+}
+function bindMascots() {
+  document.querySelectorAll('.masc .mc').forEach(el => {
+    el.onclick = () => pickMascot(el.dataset.m);
+    el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickMascot(el.dataset.m); } };
+  });
 }
 /** A 9x9 LED glyph from glyphs.json as an inline SVG in the given colour. */
 function glyphSvg(name, color, size = 22) {
@@ -268,7 +317,13 @@ function installCard(g) {
     </ol><p class="d" style="font-size:13px">${t('instrAll', { file: `<code>${esc(D.install.combined.file)}</code>` })}</p></div></div>`;
 }
 function groupCard(g) {
-  return `<div class="card">${screenToggle(g.id)}${Object.entries(g.fields).filter(([, f]) => !f.hidden).map(([k, f]) => fieldRow(g.id, k, f)).join('')}</div>`;
+  const fields = Object.entries(g.fields).filter(([, f]) => !f.hidden);
+  const first = fields.filter(([, f]) => f.section === 'screen'), rest = fields.filter(([, f]) => f.section !== 'screen');
+  const rows = list => list.map(([k, f]) => fieldRow(g.id, k, f)).join('');
+  // A screen's page opens with what every screen has (show it, its colour, how its news is told); the rest follow in a block of their own.
+  const head = first.length ? `<h3>${t(first.some(([k]) => k === 'alertSound') ? 'blkScreenAlerts' : 'blkScreen')}</h3><div class="card">${screenToggle(g.id)}${rows(first)}</div>` : '';
+  const other = rest.length ? `${first.length ? `<h3>${t('blkOther')}</h3>` : ''}<div class="card">${rows(rest)}</div>` : '';
+  return head + other;
 }
 function bindFields() {
   document.querySelectorAll('[data-f]').forEach(el => {
@@ -276,6 +331,8 @@ function bindFields() {
       const [g, k] = el.dataset.f.split('.');
       sets[g][k] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? Number(el.value) : el.value;
       touch();
+      if (g === 'ai' && k === 'mascot') showMascot(el.value, true);
+      if (g === 'ai' && k === 'color') document.querySelectorAll('.masc').forEach(m => m.style.setProperty('--acc', el.value));
     };
   });
   document.querySelectorAll('[data-reset]').forEach(el => el.onclick = () => {
@@ -289,7 +346,7 @@ function bindFields() {
 const GLYPH_NAMES = () => Object.keys(D.glyphs);
 function serversExtras() {
   const st = Object.fromEntries((S?.servers || []).map(s => [s.name, s]));
-  const okDef = sets.servers.colorOk, downDef = sets.servers.tileDown;
+  const okDef = sets.servers.color, downDef = sets.servers.tileDown;
   const rows = agent.servers.map((s, i) => {
     const up = st[s.name]?.ok;
     const color = s.color || okDef, down = s.downColor || downDef;
@@ -351,16 +408,25 @@ function extras(id) {
     return `<h3>${t('calSources')}</h3><div class="card"><div class="row"><div class="t">${dot(c?.ok)}${esc(state)}</div></div><div class="row" style="display:block"><div class="t">${t('calExclude')} <span class="d">${t('calExcludeD')}</span></div><textarea id="exclude" style="width:100%;min-height:70px;margin-top:8px">${esc((agent.calendarExclude || []).join('\n'))}</textarea></div></div>`;
   }
   if (id === 'work') return heatmap();
+  if (id === 'app') return aboutCard();
   if (id === 'ai') {
     const c = S?.claude;
     const text = c ? (c.active ? t('aiActive', { t: c.blockTokens, c: c.blockCost }) : t('aiIdle')) : t('noData');
     const agentRows = (S?.agents || []).map(a => `<div class="row"><div class="t">${dot(a.busy)}${esc(a.name)}${a.up ? `<div class="d">${t('aiUp', { n: a.up })}</div>` : ''}</div><span class="d">${a.busy ? t('aiWorking') : t('aiIdle2')}</span></div>`).join('');
     return `<h3>${t('aiAgents')}</h3><div class="card">${agentRows || `<div class="note">${t('aiAgentNone')}</div>`}</div>
-    <h3>${t('aiMascots')}</h3><div class="card"><div class="masc"><div>${claudeMascotSvg(sets.ai.color)}${t('mClaude')}</div><div>${ghostSvg('rainbow').replace('<svg class="pic"', '<svg width="55" height="55"')}${t('mGhost')}</div></div></div>
+    <h3>${t('aiMascots')}</h3><div class="card">${mascotPanel()}</div>
     <h3>${t('aiNow')}</h3><div class="card"><div class="row"><div class="t">${esc(text)}<div class="d">${t('aiPrices')}</div></div></div></div>
     <h3>${t('aiOthers')}</h3><div class="card"><div class="row"><div class="t">${t('aiOthersT')}<div class="d">${t('aiOthersD', { c: '<code>node mac-agent/bin/notify.mjs ai_done "Codex: project"</code>', w: '<code>ai_wait</code>' })}</div></div></div></div>`;
   }
   return '';
+}
+function aboutCard() {
+  const a = D.about;
+  const link = (url, text) => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(text)}</a>`;
+  return `<h3>${t('aboutTitle')}</h3><div class="card about"><div class="row" style="display:block"><div class="t"><b>${esc(a.name)}</b><div class="d" style="font-size:13px">${t('aboutText')}</div></div></div>
+    <div class="row"><div class="t">${t('aboutVersion')}</div><span>${esc(a.version)}</span></div>
+    <div class="row"><div class="t">${t('aboutRepo')}</div>${link(a.repo, a.repo.replace('https://', ''))}</div>
+    <div class="row"><div class="t">${t('aboutAuthor')}</div>${link(a.authorUrl, a.author)}</div></div>`;
 }
 function bindExtras() {
   const ex = $('#exclude'); if (ex) ex.oninput = () => { agent.calendarExclude = ex.value.split('\n').map(s => s.trim()).filter(Boolean); touch(); };
@@ -454,7 +520,7 @@ function draw() {
   if (tab === 'general' || !g) $('#main').innerHTML = general();
   else if (D.modules && D.modules[g.id] === false) $('#main').innerHTML = installCard(g);
   else $('#main').innerHTML = `<h2>${esc(g.label)}</h2><p class="sub">${t('screenSub')}</p>${groupCard(g)}${extras(tab)}`;
-  bindFields(); bindExtras(); bindGeneral();
+  bindFields(); bindExtras(); bindGeneral(); bindMascots();
 }
 
 async function load() {

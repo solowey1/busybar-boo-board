@@ -1,7 +1,7 @@
 {
   "name": "@boo-board/calendar",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The calendar screen of Boo Board: the next meeting and a grid of weeks.",
   "author": "solowey1",
   "type": "module",

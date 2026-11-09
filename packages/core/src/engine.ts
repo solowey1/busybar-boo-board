@@ -9,7 +9,7 @@ import { DIM, RED, WHITE, label, rgba, status, tr } from "./util";
 let APP = "";
 /** The screens this app has: all five in the combined app, one in each module. Set by `run`. */
 let ALL: Screen[] = [];
-// A request to the Mac is held there for up to this long while nothing changes, so news arrives at once.
+// A request to the computer is held there for up to this long while nothing changes, so news arrives at once.
 const POLL_WAIT_MS = 2000;
 const POLL_OFFLINE_MS = 10000;
 // Three times a second: the mascots and the flashes move on; unchanged elements are not sent again.
@@ -138,7 +138,7 @@ function main(): void {
   let settingsRev = -1;
   /** The first picture of a run clears the display; `resendAll` sends everything again without clearing (see `sync`). */
   let needClear = true;
-  /** True once the Mac has answered or failed to, for the first time. */
+  /** True once the computer has answered or failed to, for the first time. */
   let asked = false;
   let resendAll = false;
   let lastInputAt = 0;
@@ -389,10 +389,10 @@ function main(): void {
       });
       els = status("f", byId(current).title(cfg), n + " / " + list.length);
     } else if (!online && data.rev === 0 && !asked) {
-      // The first answer from the Mac has not come yet: nothing is shown, the bar's own "Loading" is true enough.
+      // The first answer from the computer has not come yet: nothing is shown, the bar's own "Loading" is true enough.
       els = [];
     } else if (!online && data.rev === 0) {
-      els = status("o", tr(cfg, "macDown"), cfg.host, RED);
+      els = status("o", tr(cfg, "hostDown"), cfg.host, RED);
     } else {
       els = draw(byId(current), ctx);
     }
@@ -458,12 +458,12 @@ function main(): void {
         lastAlertId = top;
         data = next;
         recvAt = Date.now();
-        // The screens' settings come with every answer from the Mac.
+        // The screens' settings come with every answer from the computer.
         if (cfg && next.meta && next.meta.settings) {
           cfg = { ...cfg, s: mergeSettings(cfg.s, next.meta.settings) };
           enabled = chosen(cfg as Config);
         }
-        // The settings page on the Mac saved the bar's own settings: read them again.
+        // The settings page on the computer saved the bar's own settings: read them again.
         const rev = next.meta ? next.meta.settingsRev : 0;
         if (settingsRev >= 0 && rev !== settingsRev) reload();
         settingsRev = rev;
@@ -479,7 +479,7 @@ function main(): void {
       });
   };
 
-  /** Asks the agent to do something on the Mac, then fetches the state at once. */
+  /** Asks the agent to do something on the computer, then fetches the state at once. */
   const control = (action: string): void => {
     if (!cfg) return;
     fetch(`http://${cfg.host}:${cfg.port}/control`, { method: "POST", body: JSON.stringify({ action }) })
@@ -543,7 +543,7 @@ function main(): void {
       // (The wheel changes the screen, OK changes the state of a screen.)
       lastInputAt = now;
       if (current === "music" && cfg.s.musicStartToggle) {
-        // The Mac does it; the new state comes with the next poll.
+        // The computer does it; the new state comes with the next poll.
         control("toggle-play-pause");
       } else if (byId(current).start) {
         // An extra function of the screen (the calendar: the next meeting).
@@ -567,7 +567,7 @@ function main(): void {
     loadConfig(APP)
       .then((c) => {
         const same = cfg !== null && cfg.host === c.host && cfg.port === c.port;
-        // The screens' settings are not the bar's own: they stay as the Mac last sent them.
+        // The screens' settings are not the bar's own: they stay as the computer last sent them.
         if (cfg) c.s = cfg.s;
         apply(c);
         if (!same) data = { rev: 0, alerts: [] };

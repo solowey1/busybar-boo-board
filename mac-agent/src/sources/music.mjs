@@ -86,7 +86,7 @@ export function startMusic({ hub, log, bin = "media-control" }) {
     }
     if (!changed) return;
     published = { music, at: now };
-    // `at` is the Mac time of the measurement; the bar re-bases on its own clock when it receives it.
+    // `at` is the computer time of the measurement; the bar re-bases on its own clock when it receives it.
     hub.set("music", music);
   };
 

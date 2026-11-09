@@ -42,7 +42,7 @@ export async function installedApps(bar) {
 }
 
 /**
- * Writes the common settings (language, the Mac's address and port) to every app of ours on the bar, and the
+ * Writes the common settings (language, the computer's address and port) to every app of ours on the bar, and the
  * screen switches to the combined app: each app takes the keys it has and keeps what else is in its own settings.
  */
 export async function putEverywhere(bar, values, ids) {

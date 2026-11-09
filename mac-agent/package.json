@@ -2,7 +2,7 @@
   "name": "boo-board-agent",
   "private": true,
   "version": "0.3.0",
-  "description": "Mac-side data agent for the BUSY Bar status app",
+  "description": "The data agent of Boo Board: runs on the computer and feeds the BUSY Bar",
   "type": "module",
   "engines": {
     "node": ">=24"

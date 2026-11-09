@@ -32,7 +32,7 @@ let tray = { loginItem: "unknown", seenAt: 0 };
 const publishMeta = () => hub.set("meta", { settingsRev, settings: forBar(config.settings) });
 publishMeta();
 
-/** The first private IPv4 address: what the bar should use to reach this Mac. */
+/** The first private IPv4 address: what the bar should use to reach this computer. */
 const lanAddress = () => {
   for (const list of Object.values(networkInterfaces())) {
     for (const n of list ?? []) if (n.family === "IPv4" && !n.internal) return n.address;
@@ -88,7 +88,7 @@ const app = {
     if (!["ru", "en"].includes(lang)) return;
     const before = lastBarLang.get(appId);
     lastBarLang.set(appId, lang);
-    // The first answer of an app only tells what it has; the page on the Mac may have changed the language a moment ago and
+    // The first answer of an app only tells what it has; the page on the computer may have changed the language a moment ago and
     // the app not have read it yet, so an unchanged old value is never taken back. Each app is followed on its own,
     // since several apps of ours can be on the bar with a language each.
     if (before === undefined || before === lang || lang === config.lang) return;
@@ -137,7 +137,7 @@ setTimeout(syncBarLang, 3000).unref();
 
 /**
  * An app of ours that appears on the bar after the agent has seen the others (a screen installed on its own) is given the
- * common settings once: the language, and where to find this Mac. The apps that were there when the agent first looked
+ * common settings once: the language, and where to find this computer. The apps that were there when the agent first looked
  * (or in an earlier run) keep what they have: they may have been set by hand.
  */
 async function welcomeNewApps() {

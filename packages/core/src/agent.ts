@@ -1,7 +1,7 @@
 import type { AgentState, Config } from "./types";
 
 /**
- * Asks the Mac agent for its state. With the revision we already have, an unchanged agent answers `same`
+ * Asks the agent for its state. With the revision we already have, an unchanged agent answers `same`
  * and we keep what we show (the playhead and the timers run on the bar's own clock).
  * Returns null when nothing changed, throws when the agent is unreachable.
  */

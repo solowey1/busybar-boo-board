@@ -49,7 +49,7 @@ export const work: Screen = {
   elements({ cfg, data, at, recvAt, view }) {
     const w = data.work;
     if (!w) return status("w", tr(cfg, "work"), tr(cfg, "noData"));
-    // While the Mac is in use the day total grows; the bar adds the time since the agent's last report.
+    // While the computer is in use the day total grows; the bar adds the time since the agent's last report.
     const grow = w.active ? Math.floor((at - recvAt) / 1000) : 0;
     const today = w.todaySec + grow;
     const state = stateOf(cfg, view);
@@ -68,7 +68,7 @@ export const work: Screen = {
     }
     const els = [
       ...row("w.y", tr(cfg, "yesterday"), fmtHM(w.yesterdaySec ?? 0), 0, DIM, DIM),
-      // Green while the Mac is in use, yellow while it rests.
+      // Green while the computer is in use, yellow while it rests.
       ...row("w.t", tr(cfg, "today"), fmtHM(today), 8, w.active ? GREEN : YELLOW, WHITE),
     ];
     // With a daily goal set, a line in the accent colour shows how far along it is.

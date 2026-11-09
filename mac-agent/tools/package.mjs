@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Builds a self-contained package of the Mac agent (with its own Node, so nothing needs installing):
+// Builds a self-contained package of the agent (with its own Node, so nothing needs installing):
 //   node tools/package.mjs <target>     target: darwin-arm64 | darwin-x64 | linux-x64 | linux-arm64 | win-x64
 // Run `npm run build` in the repository root first; the archives of the bar apps (apps/*/dist) go into an apps folder.
 // Output: release/boo-board-<version>-<target>.(zip|tar.gz)
